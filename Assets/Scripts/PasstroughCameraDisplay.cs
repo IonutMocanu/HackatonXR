@@ -14,7 +14,8 @@ public class PasstroughCameraDisplay : MonoBehaviour
     [SerializeField] private Renderer m_quadRendered;
     [SerializeField] private string m_textureName;
 
-    public DigitRecognition DigitRecognition;
+    public LeafRecognition LeafRecognition;
+
 
     [SerializeField] private TextMeshProUGUI m_textMeshProUGUI;
 
@@ -28,7 +29,7 @@ public class PasstroughCameraDisplay : MonoBehaviour
         {
             TakePicture();
 
-            var result = DigitRecognition.RunAI(m_picture);
+            var result = LeafRecognition.RunYoloDiseaseCheck(m_picture);
 
             m_textMeshProUGUI.text = "Prediction: " + result.ToString();
         }
