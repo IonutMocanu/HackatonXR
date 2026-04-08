@@ -3,7 +3,7 @@ using Unity.InferenceEngine;
 
 public class LeafRecognition : MonoBehaviour
 {
-    [SerializeField] private float confidenceThreshold = 0.4f;
+    [SerializeField] private float confidenceThreshold = 0.25f;
     [SerializeField] private ModelAsset m_modelAsset;
 
     public string[] diseaseNames = {
@@ -24,104 +24,59 @@ public class LeafRecognition : MonoBehaviour
 
         if (testPicture != null)
         {
-            string detectedDisease = RunYoloDiseaseCheck(testPicture);
-            Debug.Log("Rezultat detecție: " + detectedDisease);
+            string rezultat = RunYoloDiseaseCheck(testPicture);
+            Debug.Log("Rezultat test Start: " + rezultat);
         }
     }
 
     public string RunYoloDiseaseCheck(Texture2D picture)
     {
+        // 1. Pregătim imaginea
         using Tensor<float> inputTensor = TextureConverter.ToTensor(picture, 640, 640, 3);
+
+        // 2. Rulăm inferența
         worker.Schedule(inputTensor);
 
+        // 3. Extragem rezultatele [1, 300, 6]
         Tensor<float> outputTensor = worker.PeekOutput() as Tensor<float>;
-        TensorShape shape = outputTensor.shape;
-
         float[] results = outputTensor.DownloadToArray();
 
-        int diseaseIndex = GetHighestConfidenceClass(results, shape);
+        int numDetections = 300;
+        int elementsPerDetection = 6;
 
-        if (diseaseIndex != -1)
+        float bestConfidence = 0f;
+        int bestClassId = -1;
+
+        // 4. Căutăm detecția cu cea mai mare probabilitate
+        for (int i = 0; i < numDetections; i++)
         {
-            if (diseaseIndex < diseaseNames.Length)
+            int baseIndex = i * elementsPerDetection;
+
+            // Extragem doar Încrederea (index 4) și ID-ul clasei (index 5)
+            float confidence = results[baseIndex + 4];
+            int classId = Mathf.RoundToInt(results[baseIndex + 5]);
+
+            if (confidence > bestConfidence)
             {
-                return diseaseNames[diseaseIndex];
-            }
-            else
-            {
-                return $"Eroare logică: Clasa detectată are ID-ul {diseaseIndex}, dar nu ar trebui să depășească 11!";
-            }
-        }
-
-        return "Nicio boală detectată clar (încredere sub pragul setat).";
-    }
-
-    private int GetHighestConfidenceClass(float[] array, TensorShape shape)
-    {
-        int dim1 = shape[1];
-        int dim2 = shape[2];
-
-        int channels, numAnchors;
-        bool isTransposed;
-
-        if (dim1 > dim2)
-        {
-            numAnchors = dim1; // 8400
-            channels = dim2;   // 16
-            isTransposed = true; // Modelul este [1, 8400, 16]
-        }
-        else
-        {
-            channels = dim1;   // 16
-            numAnchors = dim2; // 8400
-            isTransposed = false; // Modelul este [1, 16, 8400]
-        }
-
-        int actualNumClasses = channels - 4; // 16 - 4 coordonate = 12 clase
-
-        int bestClassIndex = -1;
-        float maxConfidence = 0f;
-
-        // Parcurgem toate ancorele și toate clasele
-        for (int anchor = 0; anchor < numAnchors; anchor++)
-        {
-            for (int classIndex = 0; classIndex < actualNumClasses; classIndex++)
-            {
-                float confidence;
-
-                if (isTransposed)
-                {
-                    // Citire pentru forma [1, 8400, 16]
-                    confidence = array[anchor * channels + 4 + classIndex];
-                }
-                else
-                {
-                    // Citire pentru forma [1, 16, 8400]
-                    confidence = array[(4 + classIndex) * numAnchors + anchor];
-                }
-
-                if (confidence > maxConfidence)
-                {
-                    maxConfidence = confidence;
-                    bestClassIndex = classIndex;
-                }
+                bestConfidence = confidence;
+                bestClassId = classId;
             }
         }
 
-        if (maxConfidence > confidenceThreshold)
+        // 5. Interpretăm rezultatul
+        if (bestConfidence > confidenceThreshold && bestClassId >= 0 && bestClassId < diseaseNames.Length)
         {
-            Debug.Log($"Încredere maximă: {(maxConfidence * 100).ToString("0.0")}% pentru clasa {bestClassIndex} ({diseaseNames[bestClassIndex]})");
-            return bestClassIndex;
+            string detectedDisease = diseaseNames[bestClassId];
+            Debug.Log($"✅ BOALĂ DETECTATĂ: {(bestConfidence * 100).ToString("0.0")}% pentru clasa {bestClassId} ({detectedDisease})");
+            return detectedDisease;
         }
 
-        return -1;
+        Debug.Log("Nicio boală detectată clar peste pragul setat.");
+        return "Nedetectat";
     }
 
     private void OnDisable()
     {
-        if (worker != null)
-        {
-            worker.Dispose();
-        }
+        if (worker != null) worker.Dispose();
     }
 }
