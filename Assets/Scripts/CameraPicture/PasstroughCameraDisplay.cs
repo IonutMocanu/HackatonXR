@@ -9,31 +9,28 @@ public class PasstroughCameraDisplay : MonoBehaviour
     public float CropPercent = 0.5f;
 
     private Texture2D m_fullTexture;
-    private Texture2D m_picture;
+    public Texture2D Picture;
 
     [SerializeField] private Renderer m_quadRendered;
     [SerializeField] private string m_textureName;
 
-    public LeafRecognition LeafRecognition;
-
-
-    [SerializeField] private TextMeshProUGUI m_textMeshProUGUI;
+    //public LeafRecognition LeafRecognition;
 
     [SerializeField] private int m_yoffset;
     [SerializeField] private int m_xoffset;
 
 
-    private void Update()
-    {
-        if (OVRInput.GetDown(OVRInput.Button.One))
-        {
-            TakePicture();
+    //private void Update()
+    //{
+    //    if (OVRInput.GetDown(OVRInput.Button.One))
+    //    {
+    //        TakePicture();
 
-            var result = LeafRecognition.RunYoloDiseaseCheck(m_picture);
+    //        var result = LeafRecognition.RunYoloDiseaseCheck(Picture);
 
-            m_textMeshProUGUI.text = "Prediction: " + result.ToString();
-        }
-    }
+    //        TextMeshProUGUI.text = "Prediction: " + result.ToString();
+    //    }
+    //}
 
     public void TakePicture()
     {
@@ -52,9 +49,9 @@ public class PasstroughCameraDisplay : MonoBehaviour
             m_fullTexture = new Texture2D(sourceWidth, sourceHeight);
         }
 
-        if (m_picture == null || m_picture.width != cropWidth || m_picture.height != cropWidth)
+        if (Picture == null || Picture.width != cropWidth || Picture.height != cropWidth)
         {
-            m_picture = new Texture2D(cropWidth, cropWidth);
+            Picture = new Texture2D(cropWidth, cropWidth);
         }
 
         var pixels = m_cameraAccess.GetColors();
@@ -63,9 +60,9 @@ public class PasstroughCameraDisplay : MonoBehaviour
 
         Color[] croppedPixels = m_fullTexture.GetPixels(startX, startY, cropWidth, cropWidth);
 
-        m_picture.SetPixels(croppedPixels);
-        m_picture.Apply();
+        Picture.SetPixels(croppedPixels);
+        Picture.Apply();
 
-        m_quadRendered.material.SetTexture(m_textureName, m_picture);
+        m_quadRendered.material.SetTexture(m_textureName, Picture);
     }
 }

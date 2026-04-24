@@ -232,7 +232,9 @@ MonoBehaviour:
   openxrExtensionStrings: XR_EXT_hand_tracking
   company: Unity
   priority: -100
+  targetOpenXRApiVersion: 
   required: 0
+  customRuntimeLoaderName: 
 --- !u!114 &-6328266059180203932
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -818,7 +820,9 @@ MonoBehaviour:
   openxrExtensionStrings: XR_FB_hand_tracking_aim
   company: Unity
   priority: 0
+  targetOpenXRApiVersion: 
   required: 0
+  customRuntimeLoaderName: 
 --- !u!114 &11400000
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1004,6 +1008,7 @@ MonoBehaviour:
   - {fileID: -4278924443639165325}
   - {fileID: 8166212654392320859}
   - {fileID: 2712899343883620681}
+  - {fileID: 8223310042816499159}
   - {fileID: -4793266000934642512}
   - {fileID: 7843296455928633143}
   - {fileID: -3536539799950743211}
@@ -1019,6 +1024,7 @@ MonoBehaviour:
   - {fileID: 5234751088384515188}
   - {fileID: 5024844648037582061}
   - {fileID: -8705443546400708464}
+  - {fileID: -6437993385522166874}
   customLoaderName: 
   m_renderMode: 1
   m_latencyOptimization: 0
@@ -1332,7 +1338,9 @@ MonoBehaviour:
   openxrExtensionStrings: XR_EXT_hand_tracking
   company: Unity
   priority: -100
+  targetOpenXRApiVersion: 
   required: 0
+  customRuntimeLoaderName: 
 --- !u!114 &6615762022314554058
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1355,6 +1363,7 @@ MonoBehaviour:
   - {fileID: -5588517138725110412}
   - {fileID: -2769647011977254388}
   - {fileID: -2315471839570578722}
+  - {fileID: -183915327074903904}
   - {fileID: -1598043889725878616}
   - {fileID: -4441267283659108156}
   - {fileID: 2326669210844359608}
@@ -1369,6 +1378,7 @@ MonoBehaviour:
   - {fileID: 7064217653727867376}
   - {fileID: -8197816194889141334}
   - {fileID: 15499141842015140}
+  - {fileID: 6322210335414658923}
   customLoaderName: 
   m_renderMode: 1
   m_latencyOptimization: 0
@@ -1509,7 +1519,9 @@ MonoBehaviour:
   openxrExtensionStrings: XR_FB_hand_tracking_aim
   company: Unity
   priority: 0
+  targetOpenXRApiVersion: 
   required: 0
+  customRuntimeLoaderName: 
 --- !u!114 &8875375360597283513
 MonoBehaviour:
   m_ObjectHideFlags: 0

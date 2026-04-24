@@ -8,6 +8,12 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/CameraTestAPI.unity
     guid: 048561764ac3fc143ad732da1d229ee5
+  - enabled: 0
+    path: "Assets/Samples/Meta XR Interaction \u200BSDK/85.0.0/Example Scenes/HandOnHandInteraction.unity"
+    guid: 9a14d66ca19a74d40a9faa05357bddc1
+  - enabled: 0
+    path: Assets/Samples/Meta XR Core SDK/85.0.0/Sample Scenes/HandMicrogestures.unity
+    guid: 1b1c5974df2e1dd4c8c6e52c9db592eb
   m_configObjects:
     Unity.XR.Oculus.Settings: {fileID: 11400000, guid: f2bf97b3acdb64248a707c407c9fc54e, type: 2}
     com.unity.dt.app-ui: {fileID: 11400000, guid: 1b1c20d82303e4b5781c3ef50ac1449f, type: 2}
