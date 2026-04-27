@@ -10,7 +10,7 @@ public class LeafRecognition : MonoBehaviour
     public string[] diseaseNames = {
         "ALS", "Angular Leafspot", "Anthracnose Fruit Rot", "Bean Rust",
         "Blossom Blight", "Gray Mold", "Leaf Spot", "Powdery Mildew Fruit",
-        "Powdery Mildew Leaf", "disease", "leaf mold", "spider mites"
+        "Powdery Mildew Leaf", "Disease", "leaf mold", "spider mites"
     };
 
     public Dictionary<string, string> diseaseSolutions = new()

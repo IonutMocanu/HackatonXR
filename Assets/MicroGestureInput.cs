@@ -10,11 +10,8 @@ public class MicroGestureInput : MonoBehaviour
     public PasstroughCameraDisplay PhotoComponent;
 
     [Header("Yolo models")]
-    public LeafRecognition LeafRecognition;
-
-    [Header("Text zone")]
-    [SerializeField] public TextMeshProUGUI DiseaseNameTextMeshProUGUI;
-    [SerializeField] public TextMeshProUGUI SolutionDiseaseTextMeshProUGUI;
+    //public LeafRecognition LeafRecognition;
+    public ModelManagement ModelMng;
 
     private void Update()
     {
@@ -24,9 +21,10 @@ public class MicroGestureInput : MonoBehaviour
         {
             case OVRHand.MicrogestureType.ThumbTap:
                 PhotoComponent.TakePicture();
-                var result = LeafRecognition.RunYoloDiseaseCheck(PhotoComponent.Picture);
+                //var result = LeafRecognition.RunYoloDiseaseCheck(PhotoComponent.Picture);
+                ModelMng.RunYoloDiseaseCheck(PhotoComponent.Picture);
 
-                DiseaseNameTextMeshProUGUI.text = "Disease detected: " + result.ToString();
+                //DiseaseNameTextMeshProUGUI.text = "Disease detected: " + result.ToString();
                 //SolutionDiseaseTextMeshProUGUI.text = "Solution: " + LeafRecognition.diseaseSolutions[result];
                 break;
             case OVRHand.MicrogestureType.Invalid:
