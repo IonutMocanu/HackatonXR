@@ -10,6 +10,7 @@ Library: D:\HackatonXR\Temp\BurstOutput\tempburstlibs\arm64-v8a\lib_burst_genera
 --float-mode=Fast
 --generate-link-xml=Temp\burst.link.xml
 --temp-folder=D:\HackatonXR\Temp\Burst
+--debug=Full
 --key-folder=C:/Program Files/Unity/Hub/Editor/6000.0.26f1/Editor/Data/PlaybackEngines/AndroidPlayer
 --decode-folder=D:\HackatonXR\Library\Burst
 --output=D:\HackatonXR\Temp\BurstOutput\tempburstlibs\arm64-v8a\lib_burst_generated
@@ -83,6 +84,7 @@ Library: D:\HackatonXR\Temp\BurstOutput\tempburstlibs\arm64-v8a\lib_burst_genera
 --target-framework=NetFramework
 --generate-link-xml=Temp\burst.link.xml
 --temp-folder=D:\HackatonXR\Temp\Burst
+--debug=Full
 --key-folder=C:/Program Files/Unity/Hub/Editor/6000.0.26f1/Editor/Data/PlaybackEngines/AndroidPlayer
 --decode-folder=D:\HackatonXR\Library\Burst
 --output=D:\HackatonXR\Temp\BurstOutput\tempburstlibs\arm64-v8a\lib_burst_generated
@@ -112,6 +114,7 @@ Library: D:\HackatonXR\Temp\BurstOutput\tempburstlibs\arm64-v8a\lib_burst_genera
 --target-framework=NetFramework
 --generate-link-xml=Temp\burst.link.xml
 --temp-folder=D:\HackatonXR\Temp\Burst
+--debug=Full
 --key-folder=C:/Program Files/Unity/Hub/Editor/6000.0.26f1/Editor/Data/PlaybackEngines/AndroidPlayer
 --decode-folder=D:\HackatonXR\Library\Burst
 --output=D:\HackatonXR\Temp\BurstOutput\tempburstlibs\arm64-v8a\lib_burst_generated
@@ -228,6 +231,7 @@ Library: D:\HackatonXR\Temp\BurstOutput\tempburstlibs\arm64-v8a\lib_burst_genera
 --float-mode=Fast
 --generate-link-xml=Temp\burst.link.xml
 --temp-folder=D:\HackatonXR\Temp\Burst
+--debug=Full
 --key-folder=C:/Program Files/Unity/Hub/Editor/6000.0.26f1/Editor/Data/PlaybackEngines/AndroidPlayer
 --decode-folder=D:\HackatonXR\Library\Burst
 --output=D:\HackatonXR\Temp\BurstOutput\tempburstlibs\arm64-v8a\lib_burst_generated
@@ -244,6 +248,7 @@ Library: D:\HackatonXR\Temp\BurstOutput\tempburstlibs\arm64-v8a\lib_burst_genera
 --target-framework=NetFramework
 --generate-link-xml=Temp\burst.link.xml
 --temp-folder=D:\HackatonXR\Temp\Burst
+--debug=Full
 --key-folder=C:/Program Files/Unity/Hub/Editor/6000.0.26f1/Editor/Data/PlaybackEngines/AndroidPlayer
 --decode-folder=D:\HackatonXR\Library\Burst
 --output=D:\HackatonXR\Temp\BurstOutput\tempburstlibs\arm64-v8a\lib_burst_generated
@@ -359,6 +364,7 @@ Library: D:\HackatonXR\Temp\BurstOutput\tempburstlibs\arm64-v8a\lib_burst_genera
 --target-framework=NetFramework
 --generate-link-xml=Temp\burst.link.xml
 --temp-folder=D:\HackatonXR\Temp\Burst
+--debug=Full
 --key-folder=C:/Program Files/Unity/Hub/Editor/6000.0.26f1/Editor/Data/PlaybackEngines/AndroidPlayer
 --decode-folder=D:\HackatonXR\Library\Burst
 --output=D:\HackatonXR\Temp\BurstOutput\tempburstlibs\arm64-v8a\lib_burst_generated
