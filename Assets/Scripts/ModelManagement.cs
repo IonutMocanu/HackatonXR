@@ -121,3 +121,16 @@ public class ModelManagement : MonoBehaviour
         if (worker != null) worker.Dispose();
     }
 }
+
+//foreach (Transform child in mainMenu.transform)
+//{
+//    Destroy(child);
+//}
+
+//for (var i = 0; i < Pages.Length; i++)
+//{
+//    if (i == PageScrollObject.PageIndex)
+//    {
+//        Pages[i].transform.SetParent(mainMenu.transform, false);
+//    }
+//}

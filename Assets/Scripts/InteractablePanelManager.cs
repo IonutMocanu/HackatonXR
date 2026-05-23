@@ -1,37 +1,29 @@
 ﻿using TMPro;
+using Unity.XR.CoreUtils;
 using UnityEngine;
 
 public class InteractablePanelManager : MonoBehaviour
 {
     public GameObject InteractableUIPanel;
     public Transform FatherTransform;
+    public Transform[] spawners;
+    public GameObject[] Pages;
+    public PageScroll PageScrollObject;
     //public TextMeshProUGUI NextTextMeshProUGUI;
 
-    [Header("Setări Vizibilitate")]
-    [Tooltip("1 = Perfect aliniat, 0 = Din profil. 0.5 înseamnă o toleranță de aprox 60 de grade.")]
     [Range(-1f, 1f)]
     public float VizibilitateThreshold = 0.5f;
-
 
     private void Update()
     {
         //NextTextMeshProUGUI.text = gameObject.transform.rotation.ToString();
-
-        // 1. Calculăm direcția de la palmă către cameră (Vector normalizat)
         Vector3 directieCatreCamera = (Camera.main.transform.position - transform.position).normalized;
 
-        // 2. Determinăm vectorul "feței" palmei.
-        // NOTĂ: În funcție de cum este orientat modelul/prefab-ul tău, 
-        // fața palmei ar putea fi transform.forward sau -transform.forward.
         Vector3 normalaPalmei = -transform.up;
 
-        // 3. Calculăm produsul scalar (Dot Product)
         float dotProduct = Vector3.Dot(normalaPalmei, directieCatreCamera);
-
-        // 4. Dacă produsul scalar depășește pragul stabilit, palma e îndreptată spre noi
         bool estePalmaSpreCamera = dotProduct > VizibilitateThreshold;
 
-        // Optimizare: Aplicăm SetActive doar dacă starea trebuie schimbată
         GameObject buton = gameObject.transform.GetChild(0).gameObject;
         if (buton.activeSelf != estePalmaSpreCamera)
         {
@@ -51,5 +43,50 @@ public class InteractablePanelManager : MonoBehaviour
             InteractableUIPanel.transform.position = FatherTransform.position;
             InteractableUIPanel.transform.rotation = new Quaternion(FatherTransform.rotation.x, FatherTransform.rotation.y, 0f, FatherTransform.transform.rotation.w);
         }
+    }
+
+    public void SpawnTab()
+    {
+        GameObject ChildPanel = Instantiate(InteractableUIPanel, spawners[0].transform.position, spawners[0].transform.rotation);
+
+        GameObject topBar;
+        GameObject bottomBar;
+        GameObject mainMenu;
+        //int k = 0;
+
+
+        //dezactivare butoane top bar
+        topBar = ChildPanel.transform.Find("PanelInteractable").transform.GetChild(1).transform.GetChild(1).gameObject;
+        topBar.transform.GetChild(1).gameObject.SetActive(false);
+        topBar.transform.GetChild(2).gameObject.SetActive(false);
+        topBar.transform.GetChild(0).gameObject.GetComponent<TextMeshProUGUI>().text = PageScrollObject.PageIndex.ToString(); //debug
+
+        //alegere panel-uri
+        mainMenu = ChildPanel.transform.Find("PanelInteractable").transform.GetChild(1).transform.GetChild(2).transform.GetChild(0).transform.GetChild(0).gameObject;
+
+        for (var i = 0; i < Pages.Length; i++)
+        {
+            if (i == PageScrollObject.PageIndex)
+            {
+                Pages[i].transform.SetParent(mainMenu.transform, false);
+            }
+        }
+
+        //foreach(Transform child in mainMenu.transform)
+        //{
+        //    //if(k != PageScrollObject.PageIndex) Destroy(child);
+
+        //    if(k == PageScrollObject.PageIndex)
+        //    {
+
+        //    }
+
+
+        //    k++;
+        //}
+
+        //alegere butoane meniul orizontal ? il anulam ??? -- de stabilit
+        bottomBar = ChildPanel.transform.Find("PanelInteractable").transform.GetChild(1).transform.GetChild(3).gameObject;
+        bottomBar.transform.GetChild(0).gameObject.SetActive(false);
     }
 }
