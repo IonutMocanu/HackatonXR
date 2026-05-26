@@ -11,8 +11,11 @@ public class InteractablePanelManager : MonoBehaviour
     public GameObject InteractableUIPanel;
     public Transform FatherTransform;
 
-    [Tooltip("Locul unde sa se spwaneze paginiile noi generate")]
+    [Tooltip("Locuri legacy pentru zona dreapta (optional). Prefera DetachedPanelDock.")]
     public Transform[] spawners;
+
+    [SerializeField]
+    private DetachedPanelDock panelDock;
 
     public GameObject[] Pages;
 
@@ -70,6 +73,7 @@ public class InteractablePanelManager : MonoBehaviour
         public ScrollContentState SavedScrollContentState;
         public GameObject CenterWrapper;
         public List<Behaviour> DisabledNavigationBehaviours = new();
+        public DetachedPanelDock.ZoneSlot DockZone;
     }
 
     [Serializable]
@@ -181,7 +185,23 @@ public class InteractablePanelManager : MonoBehaviour
     [Range(-1f, 1f)]
     public float VizibilitateThreshold = 0.5f;
 
+    [Tooltip("Spawn Tab nu e disponibil pe prima pagina (index 0).")]
+    [SerializeField] private int minPageIndexForSpawnTab = 1;
+
+    [Tooltip("Numar minim de pagini ramase in panelul principal pentru Spawn Tab.")]
+    [SerializeField] private int minPagesForSpawnTab = 2;
+
     private int _lastSyncedPageIndex = -1;
+
+    private void Awake()
+    {
+        EnsurePanelDock();
+    }
+
+    private void Start()
+    {
+        RefreshSpawnTabButtonVisibility();
+    }
 
     private void OnEnable()
     {
@@ -284,6 +304,11 @@ public class InteractablePanelManager : MonoBehaviour
 
     public void SpawnTab()
     {
+        if (!CanSpawnTab())
+        {
+            return;
+        }
+
         if (PageScrollObject == null || PageScrollObject.Pages == null || PageScrollObject.Pages.Count == 0)
         {
             return;
@@ -305,16 +330,34 @@ public class InteractablePanelManager : MonoBehaviour
             return;
         }
 
-        Vector3 spawnPosition = GetDetachedPanelSpawnPosition();
-        Quaternion spawnRotation = spawners[0].transform.rotation;
+        if (IsPageAlreadyDetached(pageContainer))
+        {
+            return;
+        }
+
+        if (!pageContainer.transform.IsChildOf(InteractableUIPanel.transform))
+        {
+            return;
+        }
+
+        int pagesArrayIndex = FindPagesArrayIndex(pageContainer.gameObject);
+        int toggleIndexForZone = pagesArrayIndex >= 0 ? pagesArrayIndex : spawnIndex;
+
+        if (!TryGetDetachedSpawnPose(toggleIndexForZone, out Vector3 spawnPosition, out Quaternion spawnRotation, out DetachedPanelDock.ZoneSlot dockZone))
+        {
+            return;
+        }
 
         GameObject ChildPanel = Instantiate(InteractableUIPanel, spawnPosition, spawnRotation);
+        ChildPanel.name = $"{InteractableUIPanel.name}_Detached_{OutPages.Count + 1}";
 
+        PrepareClonedDetachedPanel(ChildPanel);
         DisableChildPanelPageSystems(ChildPanel);
 
         GameObject topBar = ChildPanel.transform
             .Find("PanelInteractable").GetChild(1).GetChild(1).gameObject;
         topBar.transform.GetChild(1).gameObject.SetActive(false);
+        SetSpawnTabVisibleOnPanel(ChildPanel, false);
 
         Button mergeButton = topBar.transform.GetChild(2).GetComponent<Button>();
         mergeButton.onClick.RemoveAllListeners();
@@ -325,7 +368,6 @@ public class InteractablePanelManager : MonoBehaviour
 
         List<Behaviour> disabledNavigation = new();
         GameObject pageContent = pageContainer.gameObject;
-        int pagesArrayIndex = FindPagesArrayIndex(pageContent);
         Transform originalParent = pageContent.transform.parent;
         int originalSiblingIndex = pageContent.transform.GetSiblingIndex();
         RectTransform pageRect = pageContent.GetComponent<RectTransform>();
@@ -353,7 +395,8 @@ public class InteractablePanelManager : MonoBehaviour
             SavedRectState = savedRect,
             SavedScrollContentState = savedScrollContent,
             CenterWrapper = centerWrapper,
-            DisabledNavigationBehaviours = disabledNavigation
+            DisabledNavigationBehaviours = disabledNavigation,
+            DockZone = dockZone
         });
 
         FitDetachedPageLayout(ChildPanel, pageRect);
@@ -364,6 +407,12 @@ public class InteractablePanelManager : MonoBehaviour
         SetPagerToggleVisible(pageToggle, false);
         PageScrollObject.Pages.RemoveAt(spawnIndex);
         RefreshMainPanelAfterDetach(spawnIndex);
+        RefreshSpawnTabButtonVisibility();
+
+        if (panelDock != null && dockZone != null)
+        {
+            panelDock.DockPanelAtZone(ChildPanel, dockZone);
+        }
 
         GameObject bottomBar = ChildPanel.transform
             .Find("PanelInteractable").GetChild(1).GetChild(3).gameObject;
@@ -404,17 +453,16 @@ public class InteractablePanelManager : MonoBehaviour
             detached.SavedRectState.Apply(pageRect);
         }
 
-        int siblingIndex = Mathf.Clamp(detached.OriginalSiblingIndex, 0, restoreParent.childCount);
-        pageRect.SetSiblingIndex(siblingIndex);
-
-        InsertPageEntry(detached.OriginalIndex, detached.StoredPageEntry);
+        int mergeInsertIndex = GetSortedInsertIndexByToggleOrder(detached);
+        InsertPageEntry(mergeInsertIndex, detached.StoredPageEntry);
         SetPagerToggleVisible(detached.Toggle, true);
 
         RestoreScrollLayout(pageRect, detached.SavedScrollContentState);
         RestoreDetachedPageNavigation(detached);
         EnablePageNavigation(detached.PageContent);
 
-        ApplyPageScrollState(detached.OriginalIndex);
+        RestorePageSiblingOrder(pageRect, restoreParent, detached);
+        ApplyPageScrollState(mergeInsertIndex);
         RefreshMainPanelNavigation();
         _lastSyncedPageIndex = PageScrollObject != null ? PageScrollObject.PageIndex : -1;
 
@@ -431,8 +479,14 @@ public class InteractablePanelManager : MonoBehaviour
 
         Canvas.ForceUpdateCanvases();
 
+        if (panelDock != null && detached.DockZone != null)
+        {
+            panelDock.ReleaseZone(detached.DockZone);
+        }
+
         OutPages.Remove(detached);
         Destroy(childPanel);
+        RefreshSpawnTabButtonVisibility();
     }
 
     public void CloseNewTab(GameObject panel, GameObject topBar)
@@ -442,7 +496,33 @@ public class InteractablePanelManager : MonoBehaviour
 
     private static Transform GetMenuContentMargin(Transform panelRoot)
     {
-        return panelRoot.Find("PanelInteractable").GetChild(1).GetChild(2).GetChild(0);
+        if (panelRoot == null)
+        {
+            return null;
+        }
+
+        Transform panelInteractable = panelRoot.Find("PanelInteractable");
+        if (panelInteractable == null)
+        {
+            return null;
+        }
+
+        Transform[] descendants = panelInteractable.GetComponentsInChildren<Transform>(true);
+        for (int i = 0; i < descendants.Length; i++)
+        {
+            if (descendants[i].name == "MenuContentLeftMargin")
+            {
+                return descendants[i];
+            }
+        }
+
+        if (panelInteractable.childCount > 1
+            && panelInteractable.GetChild(1).childCount > 2)
+        {
+            return panelInteractable.GetChild(1).GetChild(2).GetChild(0);
+        }
+
+        return null;
     }
 
     private static Transform GetPageContentContainer(Transform panelRoot)
@@ -754,6 +834,209 @@ public class InteractablePanelManager : MonoBehaviour
         canvasGroup.blocksRaycasts = visible;
     }
 
+    private void PrepareClonedDetachedPanel(GameObject childPanel)
+    {
+        if (childPanel == null)
+        {
+            return;
+        }
+
+        DetachedPanelSnapSetup.DisableSnapOnPanel(childPanel);
+
+        PageScroll childScroll = childPanel.GetComponentInChildren<PageScroll>(true);
+        if (childScroll != null)
+        {
+            childScroll.enabled = false;
+            DestroyPageScrollCloneContent(childScroll);
+            ClearPageScrollList(childScroll.Pages);
+        }
+
+        DestroyClonePageObjects(childPanel);
+        Transform host = GetMenuContentMargin(childPanel.transform);
+        ClearDetachedHost(host);
+        HideClonedPanelPager(childPanel);
+        SetSpawnTabVisibleOnPanel(childPanel, false);
+    }
+
+    private void DestroyPageScrollCloneContent(PageScroll childScroll)
+    {
+        Transform contentContainer = GetPageScrollContentContainer(childScroll);
+        if (contentContainer != null)
+        {
+            DestroyAllChildren(contentContainer);
+        }
+
+        Transform horizontalScroll = FindDeepChild(childScroll.transform, "HorizontalPageScroll");
+        if (horizontalScroll != null)
+        {
+            Destroy(horizontalScroll.gameObject);
+        }
+    }
+
+    private void DestroyClonePageObjects(GameObject childPanel)
+    {
+        if (Pages == null)
+        {
+            return;
+        }
+
+        for (int i = 0; i < Pages.Length; i++)
+        {
+            GameObject mainPage = Pages[i];
+            if (mainPage == null)
+            {
+                continue;
+            }
+
+            if (mainPage.transform.IsChildOf(childPanel.transform))
+            {
+                Destroy(mainPage);
+            }
+        }
+
+        foreach (Transform descendant in childPanel.GetComponentsInChildren<Transform>(true))
+        {
+            if (descendant == childPanel.transform)
+            {
+                continue;
+            }
+
+            if (!descendant.name.StartsWith("Library Page", System.StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            if (IsPageStillInMainPanel(descendant.gameObject))
+            {
+                continue;
+            }
+
+            Destroy(descendant.gameObject);
+        }
+    }
+
+    private bool IsPageStillInMainPanel(GameObject pageObject)
+    {
+        return pageObject != null
+            && InteractableUIPanel != null
+            && pageObject.transform.IsChildOf(InteractableUIPanel.transform)
+            && !IsPageInAnyDetachedPanel(pageObject);
+    }
+
+    private bool IsPageInAnyDetachedPanel(GameObject pageObject)
+    {
+        for (int i = 0; i < OutPages.Count; i++)
+        {
+            if (OutPages[i].PageContent == pageObject)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static Transform GetPageScrollContentContainer(PageScroll scroll)
+    {
+        if (scroll == null)
+        {
+            return null;
+        }
+
+        FieldInfo field = scroll.GetType().GetField(
+            "_contentContainer",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        return field?.GetValue(scroll) as Transform;
+    }
+
+    private static Transform FindDeepChild(Transform parent, string childName)
+    {
+        if (parent == null)
+        {
+            return null;
+        }
+
+        if (parent.name == childName)
+        {
+            return parent;
+        }
+
+        for (int i = 0; i < parent.childCount; i++)
+        {
+            Transform found = FindDeepChild(parent.GetChild(i), childName);
+            if (found != null)
+            {
+                return found;
+            }
+        }
+
+        return null;
+    }
+
+    private static void DestroyAllChildren(Transform parent)
+    {
+        if (parent == null)
+        {
+            return;
+        }
+
+        for (int i = parent.childCount - 1; i >= 0; i--)
+        {
+            Destroy(parent.GetChild(i).gameObject);
+        }
+    }
+
+    private bool IsPageAlreadyDetached(RectTransform pageContainer)
+    {
+        for (int i = 0; i < OutPages.Count; i++)
+        {
+            if (OutPages[i].Container == pageContainer)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static void ClearPageScrollList(object pages)
+    {
+        if (pages == null)
+        {
+            return;
+        }
+
+        if (pages is IList list)
+        {
+            list.Clear();
+            return;
+        }
+
+        MethodInfo clearMethod = pages.GetType().GetMethod("Clear", Type.EmptyTypes);
+        clearMethod?.Invoke(pages, null);
+    }
+
+    private static void HideClonedPanelPager(GameObject childPanel)
+    {
+        Transform panelInteractable = childPanel.transform.Find("PanelInteractable");
+        if (panelInteractable == null || panelInteractable.childCount <= 1)
+        {
+            return;
+        }
+
+        Transform panelCanvas = panelInteractable.GetChild(1);
+        if (panelCanvas.childCount <= 3)
+        {
+            return;
+        }
+
+        Transform bottomBar = panelCanvas.GetChild(3);
+        for (int i = bottomBar.childCount - 1; i >= 0; i--)
+        {
+            bottomBar.GetChild(i).gameObject.SetActive(false);
+        }
+    }
+
     private void DisableChildPanelPageSystems(GameObject childPanel)
     {
         PageScroll childScroll = childPanel.GetComponentInChildren<PageScroll>(true);
@@ -767,8 +1050,6 @@ public class InteractablePanelManager : MonoBehaviour
         {
             childManager.enabled = false;
         }
-
-        IsolateDetachedPageNavigation(childPanel, null);
     }
 
     private void RefreshMainPanelAfterDetach(int removedIndex)
@@ -790,6 +1071,7 @@ public class InteractablePanelManager : MonoBehaviour
         ApplyPageScrollState(visibleIndex);
         RefreshMainPanelNavigation();
         _lastSyncedPageIndex = PageScrollObject.PageIndex;
+        RefreshSpawnTabButtonVisibility();
     }
 
     private void SyncMainPanelPageIndexIfChanged()
@@ -855,6 +1137,105 @@ public class InteractablePanelManager : MonoBehaviour
         {
             toggle.SetIsOnWithoutNotify(true);
         }
+
+        RefreshSpawnTabButtonVisibility();
+    }
+
+    public bool CanSpawnTab()
+    {
+        if (PageScrollObject == null || PageScrollObject.Pages == null)
+        {
+            return false;
+        }
+
+        if (PageScrollObject.Pages.Count < minPagesForSpawnTab)
+        {
+            return false;
+        }
+
+        int scrollIndex = PageScrollObject.PageIndex;
+        int pagesArrayIndex = GetPageToggleOrderIndex(scrollIndex);
+        if (pagesArrayIndex < minPageIndexForSpawnTab)
+        {
+            return false;
+        }
+
+        EnsurePanelDock();
+        if (panelDock == null)
+        {
+            return false;
+        }
+
+        return panelDock.IsZoneAvailableForPage(pagesArrayIndex);
+    }
+
+    private int GetPageToggleOrderIndex(int scrollIndex)
+    {
+        if (PageScrollObject == null || PageScrollObject.Pages == null
+            || scrollIndex < 0 || scrollIndex >= PageScrollObject.Pages.Count)
+        {
+            return scrollIndex;
+        }
+
+        RectTransform container = PageScrollObject.Pages[scrollIndex].container;
+        if (container == null)
+        {
+            return scrollIndex;
+        }
+
+        int pagesArrayIndex = FindPagesArrayIndex(container.gameObject);
+        return pagesArrayIndex >= 0 ? pagesArrayIndex : scrollIndex;
+    }
+
+    private void RefreshSpawnTabButtonVisibility()
+    {
+        if (InteractableUIPanel == null)
+        {
+            return;
+        }
+
+        SetSpawnTabVisibleOnPanel(InteractableUIPanel, CanSpawnTab());
+
+        for (int i = 0; i < OutPages.Count; i++)
+        {
+            if (OutPages[i].ChildPanel != null)
+            {
+                SetSpawnTabVisibleOnPanel(OutPages[i].ChildPanel, false);
+            }
+        }
+    }
+
+    private static void SetSpawnTabVisibleOnPanel(GameObject panel, bool visible)
+    {
+        if (panel == null)
+        {
+            return;
+        }
+
+        Transform otherTab = FindSpawnTabButton(panel.transform);
+        if (otherTab != null)
+        {
+            otherTab.gameObject.SetActive(visible);
+        }
+    }
+
+    private static Transform FindSpawnTabButton(Transform panelRoot)
+    {
+        if (panelRoot == null)
+        {
+            return null;
+        }
+
+        Transform[] descendants = panelRoot.GetComponentsInChildren<Transform>(true);
+        for (int i = 0; i < descendants.Length; i++)
+        {
+            if (descendants[i].name == "OtherTab")
+            {
+                return descendants[i];
+            }
+        }
+
+        return null;
     }
 
     private static void ApplyMainPanelPageState(RectTransform container, CanvasGroup canvasGroup, bool isActive)
@@ -936,18 +1317,60 @@ public class InteractablePanelManager : MonoBehaviour
         return -1;
     }
 
-    private Vector3 GetDetachedPanelSpawnPosition()
+    private void EnsurePanelDock()
     {
-        Transform spawner = spawners[0];
-        Vector3 position = spawner.position;
-        int slot = OutPages.Count;
+        if (InteractableUIPanel == null)
+        {
+            return;
+        }
 
+        if (panelDock == null)
+        {
+            panelDock = GetComponent<DetachedPanelDock>();
+        }
+
+        if (panelDock == null)
+        {
+            panelDock = gameObject.AddComponent<DetachedPanelDock>();
+        }
+
+        panelDock.Initialize(InteractableUIPanel.transform, spawners);
+    }
+
+    private bool TryGetDetachedSpawnPose(
+        int toggleIndex,
+        out Vector3 position,
+        out Quaternion rotation,
+        out DetachedPanelDock.ZoneSlot dockZone)
+    {
+        position = Vector3.zero;
+        rotation = Quaternion.identity;
+        dockZone = null;
+
+        EnsurePanelDock();
+
+        if (panelDock != null && panelDock.TryReserveZoneForPage(toggleIndex, out dockZone) && dockZone.Anchor != null)
+        {
+            position = dockZone.Anchor.position;
+            rotation = dockZone.Anchor.rotation;
+            return true;
+        }
+
+        if (spawners == null || spawners.Length == 0 || spawners[0] == null)
+        {
+            return false;
+        }
+
+        Transform spawner = spawners[0];
+        position = spawner.position;
+        rotation = spawner.rotation;
+        int slot = OutPages.Count;
         if (slot > 0)
         {
             position += spawner.right * 0.4f * slot;
         }
 
-        return position;
+        return true;
     }
 
     private int FindPagesArrayIndex(GameObject pageContent)
@@ -976,6 +1399,87 @@ public class InteractablePanelManager : MonoBehaviour
         }
 
         toggle.gameObject.SetActive(visible);
+    }
+
+    private int GetToggleOrderIndex(Page detached)
+    {
+        if (detached == null)
+        {
+            return -1;
+        }
+
+        if (detached.PagesArrayIndex >= 0)
+        {
+            return detached.PagesArrayIndex;
+        }
+
+        return detached.OriginalIndex;
+    }
+
+    private int GetSortedInsertIndexByToggleOrder(Page detached)
+    {
+        int toggleOrderIndex = GetToggleOrderIndex(detached);
+        if (toggleOrderIndex < 0 || PageScrollObject == null || PageScrollObject.Pages == null)
+        {
+            return PageScrollObject != null ? PageScrollObject.Pages.Count : 0;
+        }
+
+        for (int i = 0; i < PageScrollObject.Pages.Count; i++)
+        {
+            RectTransform container = PageScrollObject.Pages[i].container;
+            if (container == null)
+            {
+                continue;
+            }
+
+            int existingOrderIndex = FindPagesArrayIndex(container.gameObject);
+            if (existingOrderIndex < 0)
+            {
+                continue;
+            }
+
+            if (toggleOrderIndex < existingOrderIndex)
+            {
+                return i;
+            }
+        }
+
+        return PageScrollObject.Pages.Count;
+    }
+
+    private void RestorePageSiblingOrder(RectTransform pageRect, Transform contentParent, Page detached)
+    {
+        if (pageRect == null || contentParent == null || detached == null)
+        {
+            return;
+        }
+
+        int toggleOrderIndex = GetToggleOrderIndex(detached);
+        if (toggleOrderIndex < 0)
+        {
+            int siblingIndex = Mathf.Clamp(detached.OriginalSiblingIndex, 0, contentParent.childCount);
+            pageRect.SetSiblingIndex(siblingIndex);
+            return;
+        }
+
+        int targetSiblingIndex = 0;
+        for (int i = 0; i < contentParent.childCount; i++)
+        {
+            Transform sibling = contentParent.GetChild(i);
+            if (sibling == pageRect)
+            {
+                continue;
+            }
+
+            int siblingOrderIndex = FindPagesArrayIndex(sibling.gameObject);
+            if (siblingOrderIndex >= 0 && siblingOrderIndex < toggleOrderIndex)
+            {
+                targetSiblingIndex++;
+            }
+        }
+
+        targetSiblingIndex = Mathf.Clamp(targetSiblingIndex, 0, contentParent.childCount - 1);
+        pageRect.SetSiblingIndex(targetSiblingIndex);
     }
 
     private void InsertPageEntry(int index, object entry)
