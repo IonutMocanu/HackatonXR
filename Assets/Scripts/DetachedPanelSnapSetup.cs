@@ -4,10 +4,50 @@ using Oculus.Interaction.HandGrab;
 using UnityEngine;
 
 /// <summary>
-/// Grab/move setup for detached panels. Snap-to-zone uses <see cref="DetachedPanelMovement"/> instead of locking SnapInteractor.
+/// Grab setup for detached shells — same movement provider as main panel, moves the shell root (not only PanelInteractable rigidbody).
 /// </summary>
 public static class DetachedPanelSnapSetup
 {
+    public static void ConfigureGrab(GameObject shellRoot, GameObject mainPanel)
+    {
+        if (shellRoot == null)
+        {
+            return;
+        }
+
+        DisableSnapOnPanel(shellRoot);
+        DisableGrabInteractables(shellRoot);
+        DisablePanelChromeGrabs(shellRoot);
+
+        Grabbable shellGrabbable = GetOrCreateShellGrabbable(shellRoot);
+        ClearGrabTransformersOnHierarchy(shellRoot);
+        SetField(shellGrabbable, "_targetTransform", shellRoot.transform);
+        SetField(shellGrabbable, "_rigidbody", null);
+        shellGrabbable.enabled = true;
+
+        object movementProvider = GetSharedMovementProvider(mainPanel);
+        RewireExternalPointables(shellRoot, shellGrabbable);
+        WirePanelHandGrabs(shellRoot, shellGrabbable, movementProvider);
+        DisableChildGrabbables(shellRoot, shellGrabbable);
+    }
+
+    public static Grabbable GetOrCreateShellGrabbable(GameObject shellRoot)
+    {
+        Grabbable[] rootGrabbables = shellRoot.GetComponents<Grabbable>();
+        Grabbable primary = rootGrabbables.Length > 0 ? rootGrabbables[0] : shellRoot.AddComponent<Grabbable>();
+
+        for (int i = 1; i < rootGrabbables.Length; i++)
+        {
+            if (rootGrabbables[i] != null)
+            {
+                rootGrabbables[i].enabled = false;
+            }
+        }
+
+        ClearGrabTransformers(primary);
+        return primary;
+    }
+
     public static void DisableSnapOnPanel(GameObject panelRoot)
     {
         if (panelRoot == null)
@@ -18,41 +58,16 @@ public static class DetachedPanelSnapSetup
         SnapInteractor[] interactors = panelRoot.GetComponentsInChildren<SnapInteractor>(true);
         for (int i = 0; i < interactors.Length; i++)
         {
-            if (interactors[i] != null)
+            SnapInteractor interactor = interactors[i];
+            if (interactor == null)
             {
-                interactors[i].enabled = false;
+                continue;
             }
+
+            SetField(interactor, "_defaultInteractable", null);
+            SetField(interactor, "_timeOutInteractable", null);
+            interactor.enabled = false;
         }
-    }
-
-    public static void ConfigureMovement(GameObject panelRoot, Transform homeAnchor)
-    {
-        if (panelRoot == null)
-        {
-            return;
-        }
-
-        DisableSnapOnPanel(panelRoot);
-        DisablePanelChromeGrabs(panelRoot);
-
-        Grabbable rootGrabbable = EnsureRootGrabbable(panelRoot);
-        if (rootGrabbable == null)
-        {
-            return;
-        }
-
-        WireHandGrabsToGrabbable(panelRoot, rootGrabbable);
-        DisableExtraGrabbables(panelRoot, rootGrabbable);
-
-        PointableElement grabPointable = FindHandGrabPointable(panelRoot);
-
-        DetachedPanelMovement movement = panelRoot.GetComponent<DetachedPanelMovement>();
-        if (movement == null)
-        {
-            movement = panelRoot.AddComponent<DetachedPanelMovement>();
-        }
-
-        movement.Configure(homeAnchor, rootGrabbable, grabPointable);
     }
 
     public static void AssignRigidbody(SnapInteractable interactable, Rigidbody rigidbody)
@@ -65,30 +80,72 @@ public static class DetachedPanelSnapSetup
         SetField(interactable, "_rigidbody", rigidbody);
     }
 
-    private static PointableElement FindHandGrabPointable(GameObject panelRoot)
+    private static void DisableGrabInteractables(GameObject root)
     {
-        Transform panelInteractable = panelRoot.transform.Find("PanelInteractable");
-        if (panelInteractable == null)
+        MonoBehaviour[] behaviours = root.GetComponentsInChildren<MonoBehaviour>(true);
+        for (int i = 0; i < behaviours.Length; i++)
         {
-            return null;
-        }
-
-        HandGrabInteractable[] handGrabs = panelInteractable.GetComponentsInChildren<HandGrabInteractable>(true);
-        for (int i = 0; i < handGrabs.Length; i++)
-        {
-            object pointable = GetField(handGrabs[i], "_pointableElement");
-            if (pointable is PointableElement element)
+            MonoBehaviour behaviour = behaviours[i];
+            if (behaviour != null && behaviour.GetType().Name == "GrabInteractable")
             {
-                return element;
+                behaviour.enabled = false;
             }
         }
-
-        return null;
     }
 
-    private static void WireHandGrabsToGrabbable(GameObject panelRoot, Grabbable rootGrabbable)
+    private static void ClearGrabTransformersOnHierarchy(GameObject root)
     {
-        Transform panelInteractable = panelRoot.transform.Find("PanelInteractable");
+        Grabbable[] grabbables = root.GetComponentsInChildren<Grabbable>(true);
+        for (int i = 0; i < grabbables.Length; i++)
+        {
+            ClearGrabTransformers(grabbables[i]);
+        }
+    }
+
+    private static void ClearGrabTransformers(Grabbable grabbable)
+    {
+        if (grabbable == null)
+        {
+            return;
+        }
+
+        SetField(grabbable, "_oneGrabTransformer", null);
+        SetField(grabbable, "_twoGrabTransformer", null);
+    }
+
+    private static void RewireExternalPointables(GameObject shellRoot, Grabbable shellGrabbable)
+    {
+        MonoBehaviour[] behaviours = shellRoot.GetComponentsInChildren<MonoBehaviour>(true);
+        for (int i = 0; i < behaviours.Length; i++)
+        {
+            MonoBehaviour behaviour = behaviours[i];
+            if (behaviour == null)
+            {
+                continue;
+            }
+
+            FieldInfo pointableField = behaviour.GetType().GetField(
+                "_pointableElement",
+                BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
+            if (pointableField == null || !typeof(PointableElement).IsAssignableFrom(pointableField.FieldType))
+            {
+                continue;
+            }
+
+            if (pointableField.GetValue(behaviour) is Component current
+                && !current.transform.IsChildOf(shellRoot.transform))
+            {
+                pointableField.SetValue(behaviour, shellGrabbable);
+            }
+        }
+    }
+
+    private static void WirePanelHandGrabs(
+        GameObject shellRoot,
+        Grabbable shellGrabbable,
+        object movementProvider)
+    {
+        Transform panelInteractable = DetachedPanelHierarchy.GetPanelInteractable(shellRoot.transform);
         if (panelInteractable == null)
         {
             return;
@@ -103,18 +160,24 @@ public static class DetachedPanelSnapSetup
                 continue;
             }
 
-            SetField(handGrab, "_pointableElement", rootGrabbable);
+            SetField(handGrab, "_pointableElement", shellGrabbable);
+            SetField(handGrab, "_rigidbody", null);
+            if (movementProvider != null)
+            {
+                SetField(handGrab, "_movementProvider", movementProvider);
+            }
+
             handGrab.enabled = true;
         }
     }
 
-    private static void DisableExtraGrabbables(GameObject panelRoot, Grabbable rootGrabbable)
+    private static void DisableChildGrabbables(GameObject shellRoot, Grabbable shellGrabbable)
     {
-        Grabbable[] grabbables = panelRoot.GetComponentsInChildren<Grabbable>(true);
+        Grabbable[] grabbables = shellRoot.GetComponentsInChildren<Grabbable>(true);
         for (int i = 0; i < grabbables.Length; i++)
         {
             Grabbable grabbable = grabbables[i];
-            if (grabbable == null || grabbable == rootGrabbable)
+            if (grabbable == null || grabbable == shellGrabbable)
             {
                 continue;
             }
@@ -123,30 +186,10 @@ public static class DetachedPanelSnapSetup
         }
     }
 
-    private static Grabbable EnsureRootGrabbable(GameObject panelRoot)
-    {
-        Grabbable grabbable = panelRoot.GetComponent<Grabbable>();
-        if (grabbable == null)
-        {
-            grabbable = panelRoot.AddComponent<Grabbable>();
-        }
-
-        SetField(grabbable, "_targetTransform", panelRoot.transform);
-
-        Rigidbody panelRigidbody = FindPanelRigidbody(panelRoot);
-        if (panelRigidbody != null)
-        {
-            SetField(grabbable, "_rigidbody", panelRigidbody);
-        }
-
-        grabbable.enabled = true;
-        return grabbable;
-    }
-
     private static void DisablePanelChromeGrabs(GameObject panelRoot)
     {
         HandGrabInteractable[] handGrabs = panelRoot.GetComponentsInChildren<HandGrabInteractable>(true);
-        Transform panelInteractable = panelRoot.transform.Find("PanelInteractable");
+        Transform panelInteractable = DetachedPanelHierarchy.GetPanelInteractable(panelRoot.transform);
 
         for (int i = 0; i < handGrabs.Length; i++)
         {
@@ -165,19 +208,21 @@ public static class DetachedPanelSnapSetup
         }
     }
 
-    private static Rigidbody FindPanelRigidbody(GameObject panelRoot)
+    private static object GetSharedMovementProvider(GameObject mainPanel)
     {
-        Transform panelInteractable = panelRoot.transform.Find("PanelInteractable");
-        if (panelInteractable != null)
+        if (mainPanel == null)
         {
-            Rigidbody rb = panelInteractable.GetComponent<Rigidbody>();
-            if (rb != null)
-            {
-                return rb;
-            }
+            return null;
         }
 
-        return panelRoot.GetComponentInChildren<Rigidbody>(true);
+        Transform mainPanelInteractable = mainPanel.transform.Find("PanelInteractable");
+        if (mainPanelInteractable == null)
+        {
+            return null;
+        }
+
+        HandGrabInteractable mainHandGrab = mainPanelInteractable.GetComponentInChildren<HandGrabInteractable>(true);
+        return mainHandGrab != null ? GetField(mainHandGrab, "_movementProvider") : null;
     }
 
     private static object GetField(Component component, string fieldName)

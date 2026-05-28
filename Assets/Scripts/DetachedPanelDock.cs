@@ -148,14 +148,25 @@ public class DetachedPanelDock : MonoBehaviour
             return;
         }
 
-        if (slot.Anchor != null)
+        slot.Occupant = panel;
+
+        GameObject mainPanel = mainPanelRoot != null ? mainPanelRoot.gameObject : null;
+        DetachedPanelSnapSetup.ConfigureGrab(panel, mainPanel);
+
+        if (detachedPanelsRoot != null)
         {
-            panel.transform.SetPositionAndRotation(slot.Anchor.position, slot.Anchor.rotation);
+            panel.transform.SetParent(detachedPanelsRoot, true);
         }
 
-        slot.Occupant = panel;
-        DetachedPanelSnapSetup.DisableSnapOnPanel(panel);
-        DetachedPanelSnapSetup.ConfigureMovement(panel, slot.Anchor);
+        Grabbable shellGrabbable = DetachedPanelSnapSetup.GetOrCreateShellGrabbable(panel);
+
+        DetachedPanelFollowDock followDock = panel.GetComponent<DetachedPanelFollowDock>();
+        if (followDock == null)
+        {
+            followDock = panel.AddComponent<DetachedPanelFollowDock>();
+        }
+
+        followDock.Configure(slot.Anchor, detachedPanelsRoot, shellGrabbable);
     }
 
     public void ReleaseZone(ZoneSlot slot)
