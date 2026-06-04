@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Text;
 using System.Text.RegularExpressions;
 using UnityEngine;
@@ -17,9 +18,11 @@ public class TTSClient : MonoBehaviour
     [SerializeField] private string model = "orpheus";
     [SerializeField] private float speed = 1.0f;
     [SerializeField] private int requestTimeoutSeconds = 90;
-    [SerializeField] private int maxInputCharacters = 100;
+    [SerializeField] private int maxInputCharacters = 900;
 
     private AudioSource audioSource;
+    private Coroutine speechCoroutine;
+    private const float PauseBetweenSegments = 0.12f;
 
     private string OpenAiSpeechUrl => $"http://{host}:{port}/v1/audio/speech";
     private string LegacySpeakUrl => $"http://{host}:{port}/speak";
@@ -34,10 +37,16 @@ public class TTSClient : MonoBehaviour
 
     public void Speak(string text)
     {
-        StartCoroutine(GenerateAndPlayAudio(text));
+        if (speechCoroutine != null)
+        {
+            StopCoroutine(speechCoroutine);
+        }
+
+        audioSource.Stop();
+        speechCoroutine = StartCoroutine(SpeakAllText(text));
     }
 
-    private IEnumerator GenerateAndPlayAudio(string text)
+    private IEnumerator SpeakAllText(string text)
     {
         string cleanText = PrepareTextForTts(text);
         if (string.IsNullOrWhiteSpace(cleanText))
@@ -46,7 +55,25 @@ public class TTSClient : MonoBehaviour
             yield break;
         }
 
-        Debug.Log($"[TTSClient] Speaking {cleanText.Length} chars to Orpheus.");
+        List<string> segments = SplitIntoSegments(cleanText, Mathf.Max(200, maxInputCharacters));
+        Debug.Log($"[TTSClient] Speaking {cleanText.Length} chars in {segments.Count} segment(s).");
+
+        for (int i = 0; i < segments.Count; i++)
+        {
+            yield return GenerateAndPlayAudio(segments[i], i + 1, segments.Count);
+
+            if (PauseBetweenSegments > 0f && i < segments.Count - 1)
+            {
+                yield return new WaitForSeconds(PauseBetweenSegments);
+            }
+        }
+
+        speechCoroutine = null;
+    }
+
+    private IEnumerator GenerateAndPlayAudio(string cleanText, int segmentIndex, int segmentCount)
+    {
+        Debug.Log($"[TTSClient] Sending segment {segmentIndex}/{segmentCount} ({cleanText.Length} chars) to Orpheus.");
 
         var openAiPayload = new TtsRequest
         {
@@ -59,10 +86,18 @@ public class TTSClient : MonoBehaviour
 
         bool played = false;
         yield return SendTtsRequest(OpenAiSpeechUrl, "openai", JsonUtility.ToJson(openAiPayload), ok => played = ok);
-        if (played) yield break;
+        if (played)
+        {
+            yield return WaitForCurrentClip();
+            yield break;
+        }
 
         var legacyPayload = new LegacySpeakRequest { text = cleanText, voice = voice };
         yield return SendTtsRequest(LegacySpeakUrl, "speak", JsonUtility.ToJson(legacyPayload), ok => played = ok);
+        if (played)
+        {
+            yield return WaitForCurrentClip();
+        }
 
         if (!played)
         {
@@ -148,19 +183,53 @@ public class TTSClient : MonoBehaviour
         text = Regex.Replace(text, @"[^\w\s\.,!?-]", " ");
         text = Regex.Replace(text, @"\s+", " ").Trim();
 
-        // Use only the first sentence so TTS stays fast on Quest.
-        int period = text.IndexOf('.');
-        if (period > 20 && period < text.Length - 1)
-        {
-            text = text.Substring(0, period + 1).Trim();
-        }
-
-        if (text.Length > maxInputCharacters)
-        {
-            text = text.Substring(0, maxInputCharacters).Trim();
-        }
-
         return text;
+    }
+
+    private List<string> SplitIntoSegments(string text, int maxCharacters)
+    {
+        List<string> segments = new List<string>();
+        int start = 0;
+
+        while (start < text.Length)
+        {
+            int remaining = text.Length - start;
+            if (remaining <= maxCharacters)
+            {
+                segments.Add(text.Substring(start).Trim());
+                break;
+            }
+
+            int end = start + maxCharacters;
+            int split = text.LastIndexOfAny(new[] { '.', '!', '?', ',', ';', ':' }, end - 1, maxCharacters);
+            if (split <= start + 80)
+            {
+                split = text.LastIndexOf(' ', end - 1, maxCharacters);
+            }
+
+            if (split <= start)
+            {
+                split = end;
+            }
+
+            segments.Add(text.Substring(start, split - start + 1).Trim());
+            start = split + 1;
+
+            while (start < text.Length && char.IsWhiteSpace(text[start]))
+            {
+                start++;
+            }
+        }
+
+        return segments;
+    }
+
+    private IEnumerator WaitForCurrentClip()
+    {
+        while (audioSource != null && audioSource.isPlaying)
+        {
+            yield return null;
+        }
     }
 
     private byte[] ExtractWavBytes(string contentType, byte[] responseBytes)

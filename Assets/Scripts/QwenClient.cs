@@ -12,12 +12,26 @@ public class QwenClient : MonoBehaviour
 
     [Header("UI Display & Connections")]
     [SerializeField] public TMP_Text UITextDisplay;
+    [SerializeField] private ChatConversationView chatView;
     [Tooltip("Drag the TTSClient script here from the Inspector")]
     [SerializeField] public TTSClient ttsClient; // Bridge to the voice engine
+
+    private void Awake()
+    {
+        EnsureChatView();
+    }
 
     public void AskQwen(string userText)
     {
         Debug.Log($"[QwenClient] Request received from Whisper. Text: {userText}");
+
+        ChatConversationView view = EnsureChatView();
+        if (view != null && !view.HasPendingAssistantResponse)
+        {
+            view.AddUserMessage(userText);
+            view.AddAssistantThinking("Qwen se gândește...");
+        }
+
         StartCoroutine(SendPromptCoroutine(userText));
     }
 
@@ -55,7 +69,15 @@ public class QwenClient : MonoBehaviour
             if (www.result != UnityWebRequest.Result.Success)
             {
                 Debug.LogError($"[QwenClient] ERROR: {www.error}\nServer Details: {www.downloadHandler.text}");
-                if (UITextDisplay != null) UITextDisplay.text += $"\n\n[Qwen Connection Error: {www.error}]";
+                ChatConversationView view = EnsureChatView();
+                if (view != null)
+                {
+                    view.AddAssistantMessage($"[Qwen Connection Error: {www.error}]");
+                }
+                else if (UITextDisplay != null)
+                {
+                    UITextDisplay.text += $"\n\n[Qwen Connection Error: {www.error}]";
+                }
             }
             else
             {
@@ -68,7 +90,12 @@ public class QwenClient : MonoBehaviour
                     string aiAnswer = response.choices[0].message.content;
                     Debug.Log($"[QwenClient] Output:\n{aiAnswer}");
 
-                    if (UITextDisplay != null)
+                    ChatConversationView view = EnsureChatView();
+                    if (view != null)
+                    {
+                        view.AddAssistantMessage(aiAnswer);
+                    }
+                    else if (UITextDisplay != null)
                     {
                         UITextDisplay.text = $"You: {userText}\n\nQwen: {aiAnswer}";
                     }
@@ -85,6 +112,16 @@ public class QwenClient : MonoBehaviour
                 }
             }
         }
+    }
+
+    private ChatConversationView EnsureChatView()
+    {
+        if (chatView == null && UITextDisplay != null)
+        {
+            chatView = ChatConversationView.GetOrCreate(UITextDisplay);
+        }
+
+        return chatView;
     }
 
     [Serializable] public class ChatMessage { public string role; public string content; }

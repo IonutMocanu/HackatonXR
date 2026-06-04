@@ -15,6 +15,7 @@ public class WhisperClient : MonoBehaviour
 
     [Header("Conexiuni UI & Qwen")]
     [SerializeField] public TMP_Text UITextDisplay;
+    [SerializeField] private ChatConversationView chatView;
     [Tooltip("Trage scriptul QwenClient aici din Inspector")]
     [SerializeField] public QwenClient qwenClient; // Puntea către al doilea script
 
@@ -27,6 +28,11 @@ public class WhisperClient : MonoBehaviour
     private const int TargetWhisperRate = 16000;
 
     private bool m_isRecording;
+
+    private void Awake()
+    {
+        EnsureChatView();
+    }
 
     void Start()
     {
@@ -75,7 +81,9 @@ public class WhisperClient : MonoBehaviour
         if (!Permission.HasUserAuthorizedPermission(Permission.Microphone)) return;
 #endif
 
-        if (UITextDisplay != null) UITextDisplay.text = "Te ascult...";
+        ChatConversationView view = EnsureChatView();
+        if (view != null) view.ShowStatus("Te ascult...");
+        else if (UITextDisplay != null) UITextDisplay.text = "Te ascult...";
         recordingClip = Microphone.Start(deviceName, false, 30, nativeHardwareSampleRate);
     }
 
@@ -88,11 +96,15 @@ public class WhisperClient : MonoBehaviour
 
         if (lastPosition < (nativeHardwareSampleRate / 2))
         {
-            if (UITextDisplay != null) UITextDisplay.text = "Înregistrare prea scurtă.";
+            ChatConversationView view = EnsureChatView();
+            if (view != null) view.ShowStatus("Înregistrare prea scurtă.");
+            else if (UITextDisplay != null) UITextDisplay.text = "Înregistrare prea scurtă.";
             return;
         }
 
-        if (UITextDisplay != null) UITextDisplay.text = "Whisper procesează...";
+        ChatConversationView processingView = EnsureChatView();
+        if (processingView != null) processingView.ShowStatus("Whisper procesează...");
+        else if (UITextDisplay != null) UITextDisplay.text = "Whisper procesează...";
 
         byte[] wavData = ConvertToWavResampled(recordingClip, lastPosition, TargetWhisperRate);
         StartCoroutine(UploadAudio(wavData));
@@ -114,7 +126,9 @@ public class WhisperClient : MonoBehaviour
             if (www.result != UnityWebRequest.Result.Success)
             {
                 Debug.LogError($"Whisper Error: {www.error}");
-                if (UITextDisplay != null) UITextDisplay.text = $"Whisper Error: {www.error}";
+                ChatConversationView view = EnsureChatView();
+                if (view != null) view.ShowStatus($"Whisper Error: {www.error}");
+                else if (UITextDisplay != null) UITextDisplay.text = $"Whisper Error: {www.error}";
             }
             else
             {
@@ -122,12 +136,23 @@ public class WhisperClient : MonoBehaviour
 
                 if (string.IsNullOrWhiteSpace(result.text))
                 {
-                    if (UITextDisplay != null) UITextDisplay.text = "[Nu am înțeles nimic / Liniște]";
+                    ChatConversationView view = EnsureChatView();
+                    if (view != null) view.ShowStatus("[Nu am înțeles nimic / Liniște]");
+                    else if (UITextDisplay != null) UITextDisplay.text = "[Nu am înțeles nimic / Liniște]";
                 }
                 else
                 {
                     // Whisper a reușit! Trimitem textul mai departe către Qwen.
-                    if (UITextDisplay != null) UITextDisplay.text = $"Tu: {result.text}\n\nQwen se gândește...";
+                    ChatConversationView view = EnsureChatView();
+                    if (view != null)
+                    {
+                        view.AddUserMessage(result.text);
+                        view.AddAssistantThinking("Qwen se gândește...");
+                    }
+                    else if (UITextDisplay != null)
+                    {
+                        UITextDisplay.text = $"Tu: {result.text}\n\nQwen se gândește...";
+                    }
 
                     if (qwenClient != null)
                     {
@@ -140,6 +165,16 @@ public class WhisperClient : MonoBehaviour
                 }
             }
         }
+    }
+
+    private ChatConversationView EnsureChatView()
+    {
+        if (chatView == null && UITextDisplay != null)
+        {
+            chatView = ChatConversationView.GetOrCreate(UITextDisplay);
+        }
+
+        return chatView;
     }
 
     private byte[] ConvertToWavResampled(AudioClip clip, int targetLength, int targetSampleRate)
