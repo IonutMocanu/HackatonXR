@@ -22,7 +22,7 @@ public class ChatConversationView : MonoBehaviour
     [Tooltip("Inset from the page edges so the original border stays visible.")]
     [SerializeField] private float edgeMargin = 16f;
     [Tooltip("Horizontal shift of the whole chat. Negative moves it to the left.")]
-    [SerializeField] private float chatHorizontalShift = 0f;
+    [SerializeField] private float chatHorizontalShift = -25f;
     [Tooltip("Corner radius (px) of the chat bubbles.")]
     [SerializeField] private int bubbleCornerRadius = 10;
     [Tooltip("How far to bring the chat toward the viewer (local -Z). Larger = more in front.")]
@@ -194,7 +194,8 @@ public class ChatConversationView : MonoBehaviour
         }
 
         // RectMask2D clips the scroll without needing a visible (colored) graphic.
-        GameObject scrollObject = new GameObject("LLM Chat Scroll", typeof(RectTransform), typeof(Image), typeof(RectMask2D), typeof(ScrollRect));
+        // DirectionalScrollRect forwards horizontal swipes to the page scroller.
+        GameObject scrollObject = new GameObject("LLM Chat Scroll", typeof(RectTransform), typeof(Image), typeof(RectMask2D), typeof(DirectionalScrollRect));
         RectTransform scrollTransform = scrollObject.GetComponent<RectTransform>();
         scrollTransform.SetParent(host, false);
         // Fill the whole page but keep an inset so the panel's original edges stay visible.
@@ -223,7 +224,7 @@ public class ChatConversationView : MonoBehaviour
         contentTransform.offsetMin = Vector2.zero;
         contentTransform.offsetMax = Vector2.zero;
 
-        ScrollRect createdScrollRect = scrollObject.GetComponent<ScrollRect>();
+        ScrollRect createdScrollRect = scrollObject.GetComponent<DirectionalScrollRect>();
         createdScrollRect.content = contentTransform;
         createdScrollRect.viewport = scrollTransform;
         createdScrollRect.horizontal = false;
