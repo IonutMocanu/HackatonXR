@@ -1,3 +1,4 @@
+using System.Collections;
 using TMPro;
 using UnityEngine;
 
@@ -10,7 +11,6 @@ public class MicroGestureInput : MonoBehaviour
     public PasstroughCameraDisplay PhotoComponent;
 
     [Header("Yolo models")]
-    //public LeafRecognition LeafRecognition;
     public ModelManagement ModelMng;
 
     [Header("LLM vision (optional)")]
@@ -22,32 +22,44 @@ public class MicroGestureInput : MonoBehaviour
     [Header("Switcher")]
     [SerializeField] public bool IsLLM;
 
+    private OVRHand.MicrogestureType m_lastGesture;
+    private bool m_isHandlingTap;
+
     private void Update()
     {
         var microgesture = OvrHand.GetMicrogestureType();
 
-        switch (microgesture)
+        if (microgesture == OVRHand.MicrogestureType.ThumbTap
+            && m_lastGesture != OVRHand.MicrogestureType.ThumbTap
+            && !m_isHandlingTap)
         {
-            case OVRHand.MicrogestureType.ThumbTap:
-                PhotoComponent.TakePicture();
-                //var result = LeafRecognition.RunYoloDiseaseCheck(PhotoComponent.Picture);
-                ModelMng.RunYoloDiseaseCheck(PhotoComponent.Picture);
-
-                if (sendPictureToLlm && qwenClient != null)
-                {
-                    qwenClient.AskQwenWithImage(PhotoComponent.Picture, llmImagePrompt);
-                }
-
-                //DiseaseNameTextMeshProUGUI.text = "Disease detected: " + result.ToString();
-                //SolutionDiseaseTextMeshProUGUI.text = "Solution: " + LeafRecognition.diseaseSolutions[result];
-                break;
-            case OVRHand.MicrogestureType.Invalid:
-                break;
-            default:
-                break;
+            StartCoroutine(HandleThumbTapCoroutine());
         }
+
+        m_lastGesture = microgesture;
     }
 
+    private IEnumerator HandleThumbTapCoroutine()
+    {
+        m_isHandlingTap = true;
+
+        yield return PhotoComponent.TakePictureCoroutine();
+
+        if (IsLLM)
+        {
+            if (sendPictureToLlm && qwenClient != null)
+            {
+                qwenClient.AskQwenWithImage(PhotoComponent.Picture, llmImagePrompt);
+            }
+        }
+        else if (ModelMng != null)
+        {
+            yield return null;
+            ModelMng.RunYoloDiseaseCheck(PhotoComponent.Picture);
+        }
+
+        m_isHandlingTap = false;
+    }
 
     public void SwitchLLM()
     {

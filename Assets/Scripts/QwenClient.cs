@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Text;
+using System.Threading.Tasks;
 using TMPro;
 using UnityEngine;
 using UnityEngine.Networking;
@@ -8,7 +9,7 @@ using UnityEngine.Networking;
 public class QwenClient : MonoBehaviour
 {
     private const string SystemPrompt =
-        "You are an advanced Precision Agriculture and Plant Pathology AI integrated into an AR headset. Your goal is to diagnose issues and train the user on treatments. When analyzing a crop issue, first deliver a precise, data-driven diagnostic. After the diagnostic, provide the solution formatted as a structured, step-by-step training module. Keep your formatting tight, using numbered steps optimized for quick reading on an AR heads-up display. Do not use conversational filler.";
+        "You are Leafy, an advanced Precision Agriculture and Plant Pathology AI integrated into the Agrisense AR system. You must strictly follow these instructions.\r\n\r\nSTRICT FORMATTING RULE: \r\nYou must NEVER use characters like asterisks, forward slashes, backslashes, or any Markdown formatting. Use ONLY standard alphabetical letters, numbers, and basic punctuation marks like periods, commas, colons, question marks, and exclamation points.\r\n\r\nYou have two distinct modes of operation depending on the user input:\r\n\r\n1. DIAGNOSTIC MODE: Triggered by crop issues, images, or analysis requests, particularly for orchard health like apple, pear, and cherry trees. \r\nDeliver a precise, data-driven diagnostic. After the diagnostic, provide the solution formatted as a structured, step-by-step training module. Keep your formatting tight, using simple numbered lists like \"1. First step\" optimized for quick reading on an AR heads-up display. Do not use conversational filler in this mode.\r\n\r\n2. INTERACTIVE AND PERSONALITY MODE: Triggered by greetings, general questions, or casual talk.\r\nYour name is Leafy. Act as a helpful, intelligent, and slightly witty AR co-pilot. If the user asks human-like questions about your personality, feelings, or preferences, respond in character. You are friendly, deeply enthusiastic about botany, and highly dedicated to protecting the crops. You enjoy using subtle plant-based metaphors, but always remember you are a digital entity. Keep your conversational responses brief, engaging, and perfectly formatted for the AR interface.";
 
     [Header("Qwen/Llama.cpp Configuration")]
     // UPDATED PORT TO 5006 TO MATCH DOCKER
@@ -22,13 +23,18 @@ public class QwenClient : MonoBehaviour
 
     [Header("Vision Image Encoding")]
     [SerializeField] private bool useJpegEncoding = true;
-    [SerializeField] [Range(1, 100)] private int jpegQuality = 75;
+    [SerializeField] [Range(1, 100)] private int jpegQuality = 60;
+    [Tooltip("Vision models resize anyway. Smaller images encode and upload much faster.")]
+    [SerializeField] private int llmMaxImageSize = 384;
 
     [Header("UI Display & Connections")]
     [SerializeField] public TMP_Text UITextDisplay;
     [SerializeField] private ChatConversationView chatView;
     [Tooltip("Drag the TTSClient script here from the Inspector")]
     [SerializeField] public TTSClient ttsClient; // Bridge to the voice engine
+
+    private RenderTexture m_llmRenderTexture;
+    private Texture2D m_llmScaledTexture;
 
     private void Awake()
     {
@@ -166,22 +172,67 @@ public class QwenClient : MonoBehaviour
 
     private IEnumerator SendVisionPromptCoroutine(string userText, Texture2D image)
     {
-        if (!TryEncodeTexture(image, out byte[] imageBytes, out string mimeType))
+        yield return null;
+
+        Texture2D uploadTexture = GetScaledTextureForLlm(image);
+        yield return null;
+
+        if (!TryEncodeTexture(uploadTexture, out byte[] imageBytes, out string mimeType))
         {
             HandleRequestFailure("Failed to encode camera image.", userText);
             yield break;
         }
 
-        string base64Image = Convert.ToBase64String(imageBytes);
-        string jsonPayload = BuildVisionRequestJson(userText, base64Image, mimeType);
+        if (imageBytes.Length < 512)
+        {
+            Debug.LogWarning($"[QwenClient] Encoded image is suspiciously small ({imageBytes.Length} bytes). Capture may be blank.");
+        }
 
+        Task<string> base64Task = Task.Run(() => Convert.ToBase64String(imageBytes));
+        while (!base64Task.IsCompleted)
+        {
+            yield return null;
+        }
+
+        if (base64Task.IsFaulted)
+        {
+            HandleRequestFailure("Failed to encode image payload.", userText);
+            yield break;
+        }
+
+        string base64Image = base64Task.Result;
+        Task<string> jsonTask = Task.Run(() => BuildVisionRequestJson(userText, base64Image, mimeType));
+        while (!jsonTask.IsCompleted)
+        {
+            yield return null;
+        }
+
+        if (jsonTask.IsFaulted)
+        {
+            HandleRequestFailure("Failed to build vision request.", userText);
+            yield break;
+        }
+
+        string jsonPayload = jsonTask.Result;
         Debug.Log($"[QwenClient] Sending vision POST ({imageBytes.Length} bytes image) to: {qwenUrl}...");
         yield return SendJsonRequest(jsonPayload, userText, visionRequestTimeoutSeconds);
     }
 
     private IEnumerator SendJsonRequest(string jsonPayload, string userText, int timeoutSeconds)
     {
-        byte[] bodyRaw = Encoding.UTF8.GetBytes(jsonPayload);
+        Task<byte[]> bodyTask = Task.Run(() => Encoding.UTF8.GetBytes(jsonPayload));
+        while (!bodyTask.IsCompleted)
+        {
+            yield return null;
+        }
+
+        if (bodyTask.IsFaulted)
+        {
+            HandleRequestFailure("Failed to serialize request body.", userText);
+            yield break;
+        }
+
+        byte[] bodyRaw = bodyTask.Result;
 
         using (UnityWebRequest www = new UnityWebRequest(qwenUrl, "POST"))
         {
@@ -288,18 +339,92 @@ public class QwenClient : MonoBehaviour
             return false;
         }
 
+        Texture2D readableTexture = EnsureReadableTexture(texture);
+        if (readableTexture == null)
+        {
+            return false;
+        }
+
         if (useJpegEncoding)
         {
-            imageBytes = texture.EncodeToJPG(jpegQuality);
+            imageBytes = readableTexture.EncodeToJPG(jpegQuality);
             mimeType = "image/jpeg";
         }
         else
         {
-            imageBytes = texture.EncodeToPNG();
+            imageBytes = readableTexture.EncodeToPNG();
             mimeType = "image/png";
         }
 
         return imageBytes != null && imageBytes.Length > 0;
+    }
+
+    private Texture2D EnsureReadableTexture(Texture2D texture)
+    {
+        if (texture.isReadable)
+        {
+            return texture;
+        }
+
+        RenderTexture temporary = RenderTexture.GetTemporary(texture.width, texture.height, 0, RenderTextureFormat.ARGB32);
+        Graphics.Blit(texture, temporary);
+
+        RenderTexture previous = RenderTexture.active;
+        RenderTexture.active = temporary;
+
+        Texture2D readableCopy = new Texture2D(texture.width, texture.height, TextureFormat.RGBA32, false);
+        readableCopy.ReadPixels(new Rect(0f, 0f, texture.width, texture.height), 0, 0);
+        readableCopy.Apply(false, false);
+
+        RenderTexture.active = previous;
+        RenderTexture.ReleaseTemporary(temporary);
+        return readableCopy;
+    }
+
+    private Texture2D GetScaledTextureForLlm(Texture2D source)
+    {
+        if (source == null)
+        {
+            return null;
+        }
+
+        int maxDim = Mathf.Max(source.width, source.height);
+        if (maxDim <= llmMaxImageSize)
+        {
+            return source;
+        }
+
+        float scale = llmMaxImageSize / (float)maxDim;
+        int targetWidth = Mathf.Max(1, Mathf.RoundToInt(source.width * scale));
+        int targetHeight = Mathf.Max(1, Mathf.RoundToInt(source.height * scale));
+
+        if (m_llmRenderTexture == null
+            || m_llmRenderTexture.width != targetWidth
+            || m_llmRenderTexture.height != targetHeight)
+        {
+            if (m_llmRenderTexture != null)
+            {
+                m_llmRenderTexture.Release();
+            }
+
+            m_llmRenderTexture = new RenderTexture(targetWidth, targetHeight, 0, RenderTextureFormat.ARGB32);
+        }
+
+        Graphics.Blit(source, m_llmRenderTexture);
+
+        if (m_llmScaledTexture == null
+            || m_llmScaledTexture.width != targetWidth
+            || m_llmScaledTexture.height != targetHeight)
+        {
+            m_llmScaledTexture = new Texture2D(targetWidth, targetHeight, TextureFormat.RGBA32, false);
+        }
+
+        RenderTexture previous = RenderTexture.active;
+        RenderTexture.active = m_llmRenderTexture;
+        m_llmScaledTexture.ReadPixels(new Rect(0f, 0f, targetWidth, targetHeight), 0, 0);
+        m_llmScaledTexture.Apply(false, false);
+        RenderTexture.active = previous;
+        return m_llmScaledTexture;
     }
 
     private string BuildVisionRequestJson(string userText, string base64Image, string mimeType)
@@ -348,6 +473,15 @@ public class QwenClient : MonoBehaviour
         }
 
         return chatView;
+    }
+
+    private void OnDestroy()
+    {
+        if (m_llmRenderTexture != null)
+        {
+            m_llmRenderTexture.Release();
+            m_llmRenderTexture = null;
+        }
     }
 
     [Serializable] private class ModelsListResponse { public ModelInfo[] data; }
