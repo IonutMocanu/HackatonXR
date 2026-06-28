@@ -9064,9 +9064,9 @@ RectTransform:
   - {fileID: 1575684999}
   m_Father: {fileID: 537424795}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 1}
-  m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 276, y: -31}
+  m_AnchorMin: {x: 0, y: 0}
+  m_AnchorMax: {x: 0, y: 0}
+  m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 32, y: 32}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &265513716
@@ -11014,9 +11014,9 @@ RectTransform:
   - {fileID: 1281736693}
   m_Father: {fileID: 537424795}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 1}
-  m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 338, y: -31}
+  m_AnchorMin: {x: 0, y: 0}
+  m_AnchorMax: {x: 0, y: 0}
+  m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 32, y: 32}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &328698992
@@ -19563,9 +19563,9 @@ RectTransform:
   m_Children: []
   m_Father: {fileID: 721998232}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 1}
-  m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 20, y: -15}
+  m_AnchorMin: {x: 0, y: 0}
+  m_AnchorMax: {x: 0, y: 0}
+  m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 40, y: 14}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &620970371
@@ -22230,9 +22230,9 @@ RectTransform:
   - {fileID: 181414305}
   m_Father: {fileID: 46024559}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 1}
-  m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 64, y: -12}
+  m_AnchorMin: {x: 0, y: 0}
+  m_AnchorMax: {x: 0, y: 0}
+  m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 40, y: 30}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &721998233
@@ -24286,8 +24286,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c710450f5e7e633479fe787c0a257ab7, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  host: 192.168.0.214
-  port: 5005
+  serverUrl: https://audio.xrici.online
   voice: tara
   model: orpheus
   speed: 1
@@ -25680,9 +25679,9 @@ RectTransform:
   - {fileID: 412989328}
   m_Father: {fileID: 537424795}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 1}
-  m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 462, y: -31}
+  m_AnchorMin: {x: 0, y: 0}
+  m_AnchorMax: {x: 0, y: 0}
+  m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 32, y: 32}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &818925503
@@ -27655,9 +27654,9 @@ RectTransform:
   - {fileID: 654869542}
   m_Father: {fileID: 537424795}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 1}
-  m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 400, y: -31}
+  m_AnchorMin: {x: 0, y: 0}
+  m_AnchorMax: {x: 0, y: 0}
+  m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 32, y: 32}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &882730066
@@ -31991,9 +31990,9 @@ RectTransform:
   - {fileID: 1112847898}
   m_Father: {fileID: 764003865}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 1}
-  m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 64, y: -12}
+  m_AnchorMin: {x: 0, y: 0}
+  m_AnchorMax: {x: 0, y: 0}
+  m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 40, y: 30}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1003300072
@@ -33020,9 +33019,9 @@ RectTransform:
   - {fileID: 1020336688}
   m_Father: {fileID: 537424795}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 1}
-  m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 524, y: -31}
+  m_AnchorMin: {x: 0, y: 0}
+  m_AnchorMax: {x: 0, y: 0}
+  m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 32, y: 32}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1029342845
@@ -55521,9 +55520,9 @@ RectTransform:
   m_Children: []
   m_Father: {fileID: 1003300071}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 1}
-  m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 20, y: -15}
+  m_AnchorMin: {x: 0, y: 0}
+  m_AnchorMax: {x: 0, y: 0}
+  m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 40, y: 14}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1865290188
@@ -60225,7 +60224,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 78acab6569babf040aab5e8711915ff0, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  whisperUrl: http://192.168.0.214:8080/v1/audio/transcriptions
+  whisperUrl: https://voice.xrici.online/inference
   UITextDisplay: {fileID: 1242003765}
   chatView: {fileID: 0}
   qwenClient: {fileID: 2012986333}
@@ -60984,14 +60983,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 95da6437046cce142b37f5ecab08bdfa, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  qwenUrl: http://192.168.0.214:1234/v1/chat/completions
-  modelName: qwen
+  qwenUrl: https://brain.xrici.online/v1/chat/completions
+  modelName: 
   autoResolveModelOnStart: 1
   temperature: 0.7
   textRequestTimeoutSeconds: 60
   visionRequestTimeoutSeconds: 120
   useJpegEncoding: 1
   jpegQuality: 75
+  llmMaxImageSize: 384
   UITextDisplay: {fileID: 821992318}
   chatView: {fileID: 0}
   ttsClient: {fileID: 790035032}

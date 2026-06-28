@@ -9,12 +9,11 @@ using UnityEngine.Networking;
 [RequireComponent(typeof(AudioSource))]
 public class TTSClient : MonoBehaviour
 {
-    [Header("Orpheus TTS (see github.com/Lex-au/Orpheus-FastAPI)")]
-    [SerializeField] private string host = "192.168.0.214";
-    [SerializeField] private int port = 5005;
+    [Header("Orpheus TTS (Cloudflare Secured)")]
+    [SerializeField] private string serverUrl = "https://audio.xrici.online";
 
     [Header("Settings")]
-    [SerializeField] private string voice = "tara";
+    [SerializeField] private string voice = "tara"; // Ensure this matches your Orpheus model voice
     [SerializeField] private string model = "orpheus";
     [SerializeField] private float speed = 1.0f;
     [SerializeField] private int requestTimeoutSeconds = 90;
@@ -24,8 +23,9 @@ public class TTSClient : MonoBehaviour
     private Coroutine speechCoroutine;
     private const float PauseBetweenSegments = 0.12f;
 
-    private string OpenAiSpeechUrl => $"http://{host}:{port}/v1/audio/speech";
-    private string LegacySpeakUrl => $"http://{host}:{port}/speak";
+    // Rutele actualizate pentru a folosi noul URL
+    private string OpenAiSpeechUrl => $"{serverUrl}/v1/audio/speech";
+    private string LegacySpeakUrl => $"{serverUrl}/speak";
 
     void Awake()
     {
@@ -252,8 +252,6 @@ public class TTSClient : MonoBehaviour
             return null;
         }
 
-        // Some OpenAPI docs expose the response as a plain JSON "string".
-        // If it's quoted, try interpreting it first as base64.
         string trimmed = jsonText.Trim();
         if (trimmed.Length > 2 && trimmed[0] == '"' && trimmed[trimmed.Length - 1] == '"')
         {
@@ -268,7 +266,7 @@ public class TTSClient : MonoBehaviour
             }
             catch
             {
-                // Not base64; continue with object parsing below.
+                // Not base64; continue cu object parsing
             }
         }
 

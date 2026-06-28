@@ -13,7 +13,7 @@ public class QwenClient : MonoBehaviour
 
     [Header("Qwen/Llama.cpp Configuration")]
     // UPDATED PORT TO 5006 TO MATCH DOCKER
-    [SerializeField] private string qwenUrl = "http://192.168.0.214:5006/v1/chat/completions";
+    [SerializeField] private string qwenUrl = "https://brain.xrici.online/v1/chat/completions";
     [Tooltip("Must match a model loaded in LM Studio. Leave empty to auto-detect from /v1/models on Start.")]
     [SerializeField] private string modelName = "";
     [SerializeField] private bool autoResolveModelOnStart = true;
@@ -111,7 +111,7 @@ public class QwenClient : MonoBehaviour
         }
 
         Debug.Log($"[QwenClient] Request received from Whisper. Text: {userText}");
-        PrepareChatUi(userText, includeImageNote: false);
+        PrepareChatUi(userText, null);
         StartCoroutine(SendPromptCoroutine(userText));
     }
 
@@ -133,11 +133,11 @@ public class QwenClient : MonoBehaviour
             : userText;
 
         Debug.Log($"[QwenClient] Vision request received. Text: {prompt}");
-        PrepareChatUi(prompt, includeImageNote: true);
+        PrepareChatUi(prompt, image);
         StartCoroutine(SendVisionPromptCoroutine(prompt, image));
     }
 
-    private void PrepareChatUi(string userText, bool includeImageNote)
+    private void PrepareChatUi(string userText, Texture2D image)
     {
         ChatConversationView view = EnsureChatView();
         if (view == null || view.HasPendingAssistantResponse)
@@ -145,8 +145,7 @@ public class QwenClient : MonoBehaviour
             return;
         }
 
-        string displayText = includeImageNote ? $"{userText}\n[imagine atasata]" : userText;
-        view.AddUserMessage(displayText);
+        view.AddUserMessage(userText, image);
         view.AddAssistantThinking("Qwen se gândește...");
     }
 

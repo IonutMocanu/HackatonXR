@@ -34,6 +34,7 @@ public class ChatConversationView : MonoBehaviour
     [SerializeField] private float verticalPadding = 16f;
     [SerializeField] private float messageSpacing = 12f;
     [SerializeField] private float fontSize = 24f;
+    [SerializeField] private float imageMessageSpacing = 10f;
     [SerializeField] private Color userBubbleColor = new Color(0.0f, 0.48f, 0.95f, 0.92f);
     [SerializeField] private Color assistantBubbleColor = new Color(0.12f, 0.15f, 0.18f, 0.92f);
     [SerializeField] private Color statusColor = new Color(0.72f, 0.78f, 0.85f, 1f);
@@ -99,27 +100,32 @@ public class ChatConversationView : MonoBehaviour
             return;
         }
 
-        CreateMessage(status, false, true);
+        CreateMessage(status, false, true, null);
         RequestScrollToBottom();
     }
 
     public void AddUserMessage(string message)
     {
+        AddUserMessage(message, null);
+    }
+
+    public void AddUserMessage(string message, Texture2D image)
+    {
         Initialize();
-        if (string.IsNullOrWhiteSpace(message))
+        if (string.IsNullOrWhiteSpace(message) && image == null)
         {
             return;
         }
 
         pendingAssistantText = null;
-        CreateMessage(message, true, false);
+        CreateMessage(message ?? string.Empty, true, false, image);
         RequestScrollToBottom();
     }
 
     public void AddAssistantThinking(string status)
     {
         Initialize();
-        pendingAssistantText = CreateMessage(status, false, false);
+        pendingAssistantText = CreateMessage(status, false, false, null);
         RequestScrollToBottom();
     }
 
@@ -138,7 +144,7 @@ public class ChatConversationView : MonoBehaviour
         }
         else
         {
-            CreateMessage(message, false, false);
+            CreateMessage(message, false, false, null);
         }
 
         if (contentRoot != null)
@@ -298,7 +304,7 @@ public class ChatConversationView : MonoBehaviour
         fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
     }
 
-    private TMP_Text CreateMessage(string message, bool fromUser, bool status)
+    private TMP_Text CreateMessage(string message, bool fromUser, bool status, Texture2D image)
     {
         GameObject row = new GameObject(status ? "Status Row" : fromUser ? "User Message Row" : "LLM Message Row", typeof(RectTransform), typeof(HorizontalLayoutGroup), typeof(LayoutElement));
         RectTransform rowTransform = row.GetComponent<RectTransform>();
@@ -359,8 +365,62 @@ public class ChatConversationView : MonoBehaviour
         LayoutElement textLayout = textObject.GetComponent<LayoutElement>();
         textLayout.preferredWidth = status ? 520f : maxBubbleWidth - (horizontalPadding * 2f);
 
+        if (image != null && fromUser && !status)
+        {
+            bubbleLayout.spacing = imageMessageSpacing;
+            AddUserImageToBubble(bubble.transform, image);
+        }
+
         LayoutRebuilder.ForceRebuildLayoutImmediate(contentRoot);
         return text;
+    }
+
+    private void AddUserImageToBubble(Transform bubble, Texture2D image)
+    {
+        float maxImageWidth = maxBubbleWidth - (horizontalPadding * 2f);
+        float aspect = image.height / (float)Mathf.Max(1, image.width);
+        float displayWidth = maxImageWidth;
+        float displayHeight = displayWidth * aspect;
+
+        GameObject imageObject = new GameObject("Photo", typeof(RectTransform), typeof(RawImage), typeof(LayoutElement));
+        imageObject.transform.SetParent(bubble, false);
+
+        RawImage rawImage = imageObject.GetComponent<RawImage>();
+        rawImage.texture = DuplicateTextureForChat(image);
+        rawImage.raycastTarget = false;
+
+        LayoutElement imageLayout = imageObject.GetComponent<LayoutElement>();
+        imageLayout.preferredWidth = displayWidth;
+        imageLayout.preferredHeight = displayHeight;
+        imageLayout.flexibleWidth = 0f;
+        imageLayout.flexibleHeight = 0f;
+        imageLayout.minWidth = displayWidth;
+        imageLayout.minHeight = displayHeight;
+    }
+
+    private static Texture2D DuplicateTextureForChat(Texture2D source)
+    {
+        if (source.isReadable)
+        {
+            Texture2D readableCopy = new Texture2D(source.width, source.height, TextureFormat.RGBA32, false);
+            readableCopy.SetPixels(source.GetPixels());
+            readableCopy.Apply(false, false);
+            return readableCopy;
+        }
+
+        RenderTexture temporary = RenderTexture.GetTemporary(source.width, source.height, 0, RenderTextureFormat.ARGB32);
+        Graphics.Blit(source, temporary);
+
+        RenderTexture previous = RenderTexture.active;
+        RenderTexture.active = temporary;
+
+        Texture2D gpuCopy = new Texture2D(source.width, source.height, TextureFormat.RGBA32, false);
+        gpuCopy.ReadPixels(new Rect(0f, 0f, source.width, source.height), 0, 0);
+        gpuCopy.Apply(false, false);
+
+        RenderTexture.active = previous;
+        RenderTexture.ReleaseTemporary(temporary);
+        return gpuCopy;
     }
 
     private static Sprite roundedSprite;

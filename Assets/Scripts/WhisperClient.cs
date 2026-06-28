@@ -11,13 +11,13 @@ using UnityEngine.Android;
 public class WhisperClient : MonoBehaviour
 {
     [Header("Whisper API Configuration")]
-    [SerializeField] private string whisperUrl = "http://192.168.0.214:8080/v1/audio/transcriptions";
+    [SerializeField] private string whisperUrl = "https://voice.xrici.online/inference";
 
     [Header("Conexiuni UI & Qwen")]
     [SerializeField] public TMP_Text UITextDisplay;
     [SerializeField] private ChatConversationView chatView;
     [Tooltip("Trage scriptul QwenClient aici din Inspector")]
-    [SerializeField] public QwenClient qwenClient; // Puntea către al doilea script
+    [SerializeField] public QwenClient qwenClient;
 
     [Header("Audio Settings")]
     [SerializeField] private float microphoneGain = 5.0f;
@@ -28,6 +28,7 @@ public class WhisperClient : MonoBehaviour
     private const int TargetWhisperRate = 16000;
 
     private bool m_isRecording;
+    private float recordStartTime; // Adăugat pentru fallback-ul de timp
 
     private void Awake()
     {
@@ -44,19 +45,6 @@ public class WhisperClient : MonoBehaviour
             Permission.RequestUserPermission(Permission.Microphone);
         }
 #endif
-
-        if (Microphone.devices.Length > 0)
-        {
-            deviceName = Microphone.devices[0];
-            int minFreq, maxFreq;
-            Microphone.GetDeviceCaps(deviceName, out minFreq, out maxFreq);
-            if (maxFreq > 0) nativeHardwareSampleRate = maxFreq;
-            Debug.Log($"Selected Mic: {deviceName} operating natively at {nativeHardwareSampleRate}Hz");
-        }
-        else
-        {
-            Debug.LogError("No microphone detected!");
-        }
     }
 
     public void Recording()
@@ -75,15 +63,37 @@ public class WhisperClient : MonoBehaviour
 
     public void StartRecording()
     {
-        if (deviceName == null) return;
-
 #if UNITY_ANDROID && !UNITY_EDITOR
-        if (!Permission.HasUserAuthorizedPermission(Permission.Microphone)) return;
+        if (!Permission.HasUserAuthorizedPermission(Permission.Microphone))
+        {
+            Permission.RequestUserPermission(Permission.Microphone);
+            ChatConversationView viewUI = EnsureChatView();
+            if (viewUI != null) viewUI.ShowStatus("Aprobă permisiunea și apasă din nou.");
+            return;
+        }
 #endif
+
+        if (deviceName == null && Microphone.devices.Length > 0)
+        {
+            deviceName = Microphone.devices[0];
+            Microphone.GetDeviceCaps(deviceName, out int minFreq, out int maxFreq);
+            if (maxFreq > 0) nativeHardwareSampleRate = maxFreq;
+            Debug.Log($"[WhisperClient] Microfon setat: {deviceName} la {nativeHardwareSampleRate}Hz");
+        }
+
+        if (deviceName == null)
+        {
+            Debug.LogError("[WhisperClient] Nu găsesc niciun microfon activ!");
+            return;
+        }
+
+        Debug.Log("[WhisperClient] ---> ÎNREGISTRAREA A ÎNCEPUT <---");
 
         ChatConversationView view = EnsureChatView();
         if (view != null) view.ShowStatus("Te ascult...");
         else if (UITextDisplay != null) UITextDisplay.text = "Te ascult...";
+
+        recordStartTime = Time.time;
         recordingClip = Microphone.Start(deviceName, false, 30, nativeHardwareSampleRate);
     }
 
@@ -91,11 +101,23 @@ public class WhisperClient : MonoBehaviour
     {
         if (deviceName == null || !Microphone.IsRecording(deviceName)) return;
 
+        Debug.Log("[WhisperClient] ---> OPRIM MICROFONUL <---");
         int lastPosition = Microphone.GetPosition(deviceName);
         Microphone.End(deviceName);
 
+        float elapsed = Time.time - recordStartTime;
+        Debug.Log($"[WhisperClient] Timp fizic scurs: {elapsed:F2}s, Pozitie raportată de Unity: {lastPosition}");
+
+        // REZOLVARE BUG QUEST: Unity raportează uneori 0 position pe Android chiar dacă ai vorbit
+        if (lastPosition == 0 && elapsed > 0.5f)
+        {
+            lastPosition = (int)(elapsed * nativeHardwareSampleRate);
+            Debug.Log($"[WhisperClient] Am detectat bug-ul Unity (pozitie 0). Am estimat poziția corectă la: {lastPosition}");
+        }
+
         if (lastPosition < (nativeHardwareSampleRate / 2))
         {
+            Debug.LogWarning("[WhisperClient] Anulat: Înregistrare sub 0.5 secunde!");
             ChatConversationView view = EnsureChatView();
             if (view != null) view.ShowStatus("Înregistrare prea scurtă.");
             else if (UITextDisplay != null) UITextDisplay.text = "Înregistrare prea scurtă.";
@@ -106,16 +128,22 @@ public class WhisperClient : MonoBehaviour
         if (processingView != null) processingView.ShowStatus("Whisper procesează...");
         else if (UITextDisplay != null) UITextDisplay.text = "Whisper procesează...";
 
+        Debug.Log("[WhisperClient] Convertim clipul în WAV...");
         byte[] wavData = ConvertToWavResampled(recordingClip, lastPosition, TargetWhisperRate);
+        Debug.Log($"[WhisperClient] Pachet creat ({wavData.Length} bytes). Lansăm cererea către cloud...");
+
         StartCoroutine(UploadAudio(wavData));
     }
 
     private IEnumerator UploadAudio(byte[] wavBytes)
     {
+        float uploadStart = Time.time;
+        Debug.Log($"[WhisperClient] POST către: {whisperUrl}");
+
         var formData = new System.Collections.Generic.List<IMultipartFormSection>
         {
             new MultipartFormFileSection("file", wavBytes, "audio.wav", "audio/wav"),
-            new MultipartFormDataSection("model", "ggml-base.bin")
+            new MultipartFormDataSection("model", "ggml-base.en.bin")
         };
 
         using (UnityWebRequest www = UnityWebRequest.Post(whisperUrl, formData))
@@ -123,15 +151,19 @@ public class WhisperClient : MonoBehaviour
             www.timeout = 60;
             yield return www.SendWebRequest();
 
+            float requestDuration = Time.time - uploadStart;
+            Debug.Log($"[WhisperClient] Request terminat în {requestDuration:F2}s. Status: {www.result}");
+
             if (www.result != UnityWebRequest.Result.Success)
             {
-                Debug.LogError($"Whisper Error: {www.error}");
+                Debug.LogError($"[WhisperClient] EROARE SERVER: {www.error} | Detalii: {www.downloadHandler.text}");
                 ChatConversationView view = EnsureChatView();
-                if (view != null) view.ShowStatus($"Whisper Error: {www.error}");
-                else if (UITextDisplay != null) UITextDisplay.text = $"Whisper Error: {www.error}";
+                if (view != null) view.ShowStatus($"Eroare rețea: {www.error}");
+                else if (UITextDisplay != null) UITextDisplay.text = $"Eroare rețea: {www.error}";
             }
             else
             {
+                Debug.Log($"[WhisperClient] RĂSPUNS: {www.downloadHandler.text}");
                 WhisperResponse result = JsonUtility.FromJson<WhisperResponse>(www.downloadHandler.text);
 
                 if (string.IsNullOrWhiteSpace(result.text))
@@ -142,7 +174,7 @@ public class WhisperClient : MonoBehaviour
                 }
                 else
                 {
-                    // Whisper a reușit! Trimitem textul mai departe către Qwen.
+                    Debug.Log($"[WhisperClient] Text recunoscut cu succes. Îl trimit la Qwen...");
                     ChatConversationView view = EnsureChatView();
                     if (view != null)
                     {
@@ -156,11 +188,11 @@ public class WhisperClient : MonoBehaviour
 
                     if (qwenClient != null)
                     {
-                        qwenClient.AskQwen(result.text); // Apelează scriptul 2
+                        qwenClient.AskQwen(result.text);
                     }
                     else
                     {
-                        Debug.LogWarning("Ai uitat să legi QwenClient în Inspector!");
+                        Debug.LogWarning("[WhisperClient] Ai uitat să legi QwenClient în Inspector!");
                     }
                 }
             }
