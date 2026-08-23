@@ -11,9 +11,6 @@
 
 🏆 **This project was specifically developed for the XRCC 2026, where our team successfully qualified and competed in the finals in Berlin.**
 
-## 🎥 XRCC Final Presentation
-
-[![AgriSense AR - XRCC Final Presentation](https://img.youtube.com/vi/YOUR_VIDEO_ID/0.jpg)](https://www.youtube.com/watch?v=r8hktU4A-Vw)
 
 ## ✨ Key Features
 
@@ -54,3 +51,8 @@
 ## 📄 License
 
 This project is licensed under the MIT License.
+
+
+## 🎥 XRCC Final Presentation
+
+[![AgriSense AR - XRCC Final Presentation](https://img.youtube.com/vi/YOUR_VIDEO_ID/0.jpg)](https://www.youtube.com/watch?v=r8hktU4A-Vw)
