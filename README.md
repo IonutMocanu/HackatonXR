@@ -8,7 +8,14 @@
 
 **AgriSense AR** is an innovative augmented reality (AR) application developed for the Meta Quest ecosystem, designed to facilitate the rapid identification and treatment of plant diseases. 
 
-This project was a finalist at the **XR Creativity Challenge** in Berlin.
+
+🏆 **This project was specifically developed for the XRCC 2026, where our team successfully qualified and competed in the finals in Berlin.**
+
+## 🎥 XRCC Final Presentation
+
+
+
+
 
 ## ✨ Key Features
 
