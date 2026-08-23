@@ -55,4 +55,4 @@ This project is licensed under the MIT License.
 
 ## 🎥 XRCC Final Presentation
 
-[![AgriSense AR - XRCC Final Presentation](https://img.youtube.com/vi/YOUR_VIDEO_ID/0.jpg)](https://www.youtube.com/watch?v=r8hktU4A-Vw)
+[![AgriSense AR - XRCC Final Presentation](https://img.youtube.com/vi/r8hktU4A-Vw/0.jpg)](https://www.youtube.com/watch?v=r8hktU4A-Vw)
