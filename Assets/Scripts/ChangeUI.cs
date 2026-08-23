@@ -26,6 +26,7 @@ public class ChangeUI : MonoBehaviour
     [Header("Layout Settings")]
     public RectTransform ButtonContainer;
     public GameObject InteractableFather;
+    public GameObject SquarePanel;
 
     private int m_indexList = 0;
     private Button m_back_button;
@@ -162,11 +163,13 @@ public class ChangeUI : MonoBehaviour
     private void OnYesClicked()
     {
         if (InteractableFather != null) InteractableFather.SetActive(false);
+        if (SquarePanel != null) SquarePanel.SetActive(true);
     }
 
     private void OnFinishClicked()
     {
         if (InteractableFather != null) InteractableFather.SetActive(false);
+        if (SquarePanel != null) SquarePanel.SetActive(true);
     }
 
     private void ToggleButtonState(GameObject btnObj, bool show)

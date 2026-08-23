@@ -1627,7 +1627,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &50105420
 RectTransform:
   m_ObjectHideFlags: 0
@@ -16698,7 +16698,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   _toggleGroup: {fileID: 0}
   _contentContainer: {fileID: 265746480}
-  Pages:
+  _pages:
   - toggle: {fileID: 265513718}
     container: {fileID: 617467576}
     canvasGroup: {fileID: 617467568}
@@ -16714,7 +16714,7 @@ MonoBehaviour:
   - toggle: {fileID: 1029342847}
     container: {fileID: 1963220620}
     canvasGroup: {fileID: 1963220623}
-  PageIndex: 0
+  _pageIndex: 0
   animationSpeed: 10
   alphaTransitionCurve:
     serializedVersion: 2
@@ -26469,7 +26469,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 0, y: 0}
+  m_AnchoredPosition: {x: 2267.9995, y: 0}
   m_SizeDelta: {x: 755.9999, y: 486}
   m_Pivot: {x: 0, y: 1}
 --- !u!1 &841923060
@@ -34327,7 +34327,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!225 &1081189743
 CanvasGroup:
   m_ObjectHideFlags: 0
@@ -34462,9 +34462,9 @@ RectTransform:
   - {fileID: 604687220}
   m_Father: {fileID: 265746480}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 0, y: 0}
-  m_AnchoredPosition: {x: 0, y: 0}
+  m_AnchorMin: {x: 0, y: 1}
+  m_AnchorMax: {x: 0, y: 1}
+  m_AnchoredPosition: {x: 4535.9995, y: 0}
   m_SizeDelta: {x: 755.9999, y: 438}
   m_Pivot: {x: 0, y: 1}
 --- !u!1 &1087198711
@@ -53399,7 +53399,7 @@ MonoBehaviour:
   - {fileID: 298763186}
   - {fileID: 633006886}
   - {fileID: 1963220619}
-  PageScrollObject: {fileID: 537424797}
+  PageScrollObject: {fileID: 0}
   OutPages: []
   VizibilitateThreshold: 0.647
   minPageIndexForSpawnTab: 1
@@ -53830,8 +53830,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   _toggleGroup: {fileID: 0}
   _contentContainer: {fileID: 1829609527}
-  Pages: []
-  PageIndex: 0
+  _pages: []
+  _pageIndex: 0
   animationSpeed: 10
   alphaTransitionCurve:
     serializedVersion: 2
@@ -132326,6 +132326,7 @@ MonoBehaviour:
   - {fileID: 32900000, guid: 96634dbf50a5b124f9789eb2e1134f01, type: 3}
   ButtonContainer: {fileID: 7988939796166855237}
   InteractableFather: {fileID: 304067262}
+  SquarePanel: {fileID: 50105419}
 --- !u!1 &8604680774115212838
 GameObject:
   m_ObjectHideFlags: 0
