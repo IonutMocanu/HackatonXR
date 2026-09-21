@@ -44,7 +44,7 @@
 4. Connect your Meta Quest headset to the PC with Developer Mode enabled.
 5. In Unity, navigate to `File -> Build Settings`, ensure the selected platform is **Android**, and click **Build and Run**.
 
-## 👨‍💻 Author
+## 👨‍💻 Authors
 
 *   **Mocanu Andrei Ionuț**
 *   **Niculescu Cătălin**
