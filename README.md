@@ -47,6 +47,7 @@
 ## 👨‍💻 Author
 
 *   **Mocanu Andrei Ionuț**
+*   **Niculescu Cătălin**
 
 ## 📄 License
 
